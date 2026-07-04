@@ -18,3 +18,7 @@ rename all of the dataset creation scripts and make sure they all work
 
 
 make all of the plots in the repository follow the config.yaml for all of the plot coloring where it makes
+
+
+
+Write the Future Work section of the README
