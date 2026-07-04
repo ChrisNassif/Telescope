@@ -88,6 +88,9 @@ git lfs clone https://huggingface.co/datasets/Aanimated/telescope_experiment_res
 
 # Download datasets
 git lfs clone https://huggingface.co/datasets/Aanimated/telescope_datasets datasets
+
+# Download original ghostbusters datasets (only needed if you want to generate new ghostbusters datasets)
+git lfs clone https://github.com/ChrisNassif/telescope_original_ghostbusters_datasets ghostbusters_dataset_creation/original_ghostbusters_datasets
 ```
 
 ## Project Structure
@@ -222,6 +225,10 @@ Experiment results contain only raw metric values. Analysis scripts compute perf
 ## Additional Metrics
 
 Various additional metrics are implemented in `llm_text_detectors/llm_text_detectors.py` from our initial large-scale testing phase. While none proved as promising as Telescope Perplexity in our experiments, they remain available for further research and analysis.
+
+
+## Future Work
+
 
 
 ## Citation

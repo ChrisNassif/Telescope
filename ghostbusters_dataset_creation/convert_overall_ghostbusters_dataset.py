@@ -8,21 +8,21 @@ import csv
 # (human written, ai written)
 text_directories = [
     {
-        'ghostbuster-data/essay/human': [
-            'ghostbuster-data/essay/gpt', 
-            'ghostbuster-data/essay/gpt_prompt1',
-            'ghostbuster-data/essay/gpt_prompt2',
-            'ghostbuster-data/essay/gpt_semantic',
-            'ghostbuster-data/essay/gpt_writing',
-            'ghostbuster-data/essay/claude'
+        'original_ghostbusters_datasets/essay/human': [
+            'original_ghostbusters_datasets/essay/gpt', 
+            'original_ghostbusters_datasets/essay/gpt_prompt1',
+            'original_ghostbusters_datasets/essay/gpt_prompt2',
+            'original_ghostbusters_datasets/essay/gpt_semantic',
+            'original_ghostbusters_datasets/essay/gpt_writing',
+            'original_ghostbusters_datasets/essay/claude'
         ],
-        'ghostbuster-data/wp/human': [
-            'ghostbuster-data/wp/gpt',
-            'ghostbuster-data/wp/gpt_prompt1',
-            'ghostbuster-data/wp/gpt_prompt2',
-            'ghostbuster-data/wp/gpt_semantic',
-            'ghostbuster-data/wp/gpt_writing',
-            'ghostbuster-data/wp/claude'
+        'original_ghostbusters_datasets/wp/human': [
+            'original_ghostbusters_datasets/wp/gpt',
+            'original_ghostbusters_datasets/wp/gpt_prompt1',
+            'original_ghostbusters_datasets/wp/gpt_prompt2',
+            'original_ghostbusters_datasets/wp/gpt_semantic',
+            'original_ghostbusters_datasets/wp/gpt_writing',
+            'original_ghostbusters_datasets/wp/claude'
         ]
     }
 ]
@@ -30,13 +30,13 @@ text_directories = [
 # news is formatted differently, so we need to treat it differently
 news_text_directories = [
     {
-        'ghostbuster-data/essay/human': [
-            'ghostbuster-data/reuter/gpt',
-            'ghostbuster-data/reuter/gpt_prompt1',
-            'ghostbuster-data/reuter/gpt_prompt2',
-            'ghostbuster-data/reuter/gpt_semantic',
-            'ghostbuster-data/reuter/gpt_writing',
-            'ghostbuster-data/reuter/claude'
+        'original_ghostbusters_datasets/essay/human': [
+            'original_ghostbusters_datasets/reuter/gpt',
+            'original_ghostbusters_datasets/reuter/gpt_prompt1',
+            'original_ghostbusters_datasets/reuter/gpt_prompt2',
+            'original_ghostbusters_datasets/reuter/gpt_semantic',
+            'original_ghostbusters_datasets/reuter/gpt_writing',
+            'original_ghostbusters_datasets/reuter/claude'
         ]
     }
 ]
@@ -104,11 +104,11 @@ data = []
 
 
 # HANDLE PERTURBATIONS FOLDER
-labels = open("ghostbuster-data/perturb/labels.txt").readlines()
+labels = open("original_ghostbusters_datasets/perturb/labels.txt").readlines()
 
-for perturbation_type_folder_path in os.listdir("ghostbuster-data/perturb"):
+for perturbation_type_folder_path in os.listdir("original_ghostbusters_datasets/perturb"):
     
-    perturbation_type_folder_path = os.path.join("ghostbuster-data/perturb", perturbation_type_folder_path)
+    perturbation_type_folder_path = os.path.join("original_ghostbusters_datasets/perturb", perturbation_type_folder_path)
     if os.path.isfile(perturbation_type_folder_path): continue
     
     for level_of_perturbation_folder_name in os.listdir(perturbation_type_folder_path):

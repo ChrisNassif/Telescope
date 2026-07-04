@@ -58,13 +58,13 @@ attack_datasets_to_create = [
 
 for name, attack_type, level in attack_datasets_to_create:
     
-    text_directory = f"ghostbuster-data/perturb/{attack_type}/{level}/"
-    labels_file = "ghostbuster-data/labels.txt"
+    text_directory = f"original_ghostbusters_datasets/perturb/{attack_type}/{level}/"
+    labels_file = "original_ghostbusters_datasets/labels.txt"
 
     csv_writer = csv.DictWriter(open(f"Ghostbusters_Perturb_{name}_{level}.csv", "w+"), fieldnames=["text", "generated"])
     csv_writer.writeheader()
 
-    labels = open("ghostbuster-data/perturb/labels.txt").readlines()
+    labels = open("original_ghostbusters_datasets/perturb/labels.txt").readlines()
     print(labels)
     data = []
     for text_filename in os.listdir(text_directory):

@@ -11,9 +11,9 @@ MODEL_DISPLAYNAME = "GPT4o_Adversarial_Prompt2"
 DATASET_TYPE = "essay" # wp, reuter, essay
 DATASET_TYPE_DISPLAYNAME = "Essay" # Creative, News, Essay
 
-human_written_text_directory = f'ghostbuster-data/{DATASET_TYPE}/human'
-ai_written_text_directory = f'ghostbuster-data/{DATASET_TYPE}/{MODEL_CODENAME}'
-prompt_text_directory = f'ghostbuster-data/{DATASET_TYPE}/prompts'
+human_written_text_directory = f'original_ghostbusters_datasets/{DATASET_TYPE}/human'
+ai_written_text_directory = f'original_ghostbusters_datasets/{DATASET_TYPE}/{MODEL_CODENAME}'
+prompt_text_directory = f'original_ghostbusters_datasets/{DATASET_TYPE}/prompts'
 
 csv_writer = csv.DictWriter(open(f"Ghostbusters_{DATASET_TYPE_DISPLAYNAME}_{MODEL_DISPLAYNAME}_Dataset.csv", "w+"), fieldnames=["text", "generated"])
 csv_writer.writeheader()

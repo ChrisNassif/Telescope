@@ -46,8 +46,8 @@ def prompt_model(prompt) -> ChatCompletion:
 
 
 
-ai_written_text_directory = f'ghostbuster-data/{DATASET_FOLDER}/{MODEL_NAME}'
-prompt_text_directory = f'ghostbuster-data/{DATASET_FOLDER}/prompts'
+ai_written_text_directory = f'original_ghostbusters_datasets/{DATASET_FOLDER}/{MODEL_NAME}'
+prompt_text_directory = f'original_ghostbusters_datasets/{DATASET_FOLDER}/prompts'
 
 if not os.path.isdir(ai_written_text_directory):
     os.mkdir(ai_written_text_directory)

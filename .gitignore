@@ -19,6 +19,5 @@ experiment_results
 *.egg-info
 telescope.egg-info
 experiment_analyses
-ghostbusters_dataset_creation/ghostbuster-data
 ghostbusters_dataset_creation/original_ghostbusters_datasets
 dist

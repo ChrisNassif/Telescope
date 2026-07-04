@@ -17,9 +17,4 @@ Where is the reuters conversion script?
 rename all of the dataset creation scripts and make sure they all work
 
 
-Put the ghostbuster-data into another huggingface repository and make sure it is cloned in the installation instructions
-
-
 make all of the plots in the repository follow the config.yaml for all of the plot coloring where it makes
-
-make sure to upload the new version of the experiment_results
