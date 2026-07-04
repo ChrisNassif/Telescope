@@ -1,7 +1,5 @@
 .vscode
-hugging_face_auth_token.txt
 validate_datasets
-raw_datasets
 raw_datasets
 SmolLM-360M**
 old
@@ -23,9 +21,4 @@ telescope.egg-info
 experiment_analyses
 ghostbusters_dataset_creation/ghostbuster-data
 ghostbusters_dataset_creation/original_ghostbusters_datasets
-
-
-# temp
-find_duplicates.py
-run_some_experiments*
-scripts/generate_experiment_results_*
+dist

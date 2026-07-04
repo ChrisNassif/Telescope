@@ -6,6 +6,9 @@ Analyzes the separability of two datasets using perplexity, cross-perplexity, an
 
 import os
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import argparse
 import numpy as np
 import torch
@@ -18,6 +21,7 @@ from tqdm import tqdm
 import json
 import logging
 from typing import List, Tuple, Dict, Any
+from llm_text_detectors import Detectors
 
 # Configure logging
 logging.basicConfig(
@@ -38,20 +42,7 @@ def compute_perplexity(
     temperature: float = 1.0
 ) -> np.ndarray:
     """Calculate perplexity scores for each sample in a batch."""
-    shifted_logits = logits[..., :-1, :].contiguous() / temperature
-    shifted_labels = encoding.input_ids[..., :-1].contiguous()
-    shifted_attention_mask = encoding.attention_mask[..., :-1].contiguous()
-
-    if median:
-        ce_nan = (ce_loss_fn(shifted_logits.transpose(1, 2), shifted_labels).
-                  masked_fill(~shifted_attention_mask.bool(), float("nan")))
-        ppl = np.nanmedian(ce_nan.cpu().float().numpy(), 1)
-    else:
-        ppl = (ce_loss_fn(shifted_logits.transpose(1, 2), shifted_labels) *
-               shifted_attention_mask).sum(1) / shifted_attention_mask.sum(1)
-        ppl = ppl.to("cpu").float().numpy()
-
-    return ppl
+    return Detectors._compute_perplexity(None, encoding, logits, median, temperature)
 
 
 def compute_cross_perplexity(
@@ -59,31 +50,24 @@ def compute_cross_perplexity(
     performer_logits: torch.Tensor,
     observer_model: transformers.PreTrainedModel,
     device: torch.device,
+    pad_token_id: int,
     median: bool = False,
     temperature: float = 1.0
 ) -> np.ndarray:
     """Calculate cross-perplexity between a performer and observer model."""
-    performer_probs = softmax_fn(performer_logits[..., :-1, :].contiguous() / temperature)
-
     with torch.no_grad():
         observer_outputs = observer_model(**performer_encoding)
         observer_logits = observer_outputs.logits
 
-    observer_probs = softmax_fn(observer_logits[..., :-1, :].contiguous() / temperature)
-
-    kl_div = torch.sum(performer_probs * (torch.log(performer_probs + 1e-10) -
-                                          torch.log(observer_probs + 1e-10)), dim=-1)
-
-    shifted_attention_mask = performer_encoding.attention_mask[..., :-1].contiguous()
-
-    if median:
-        kl_nan = kl_div.masked_fill(~shifted_attention_mask.bool(), float("nan"))
-        cross_ppl = np.nanmedian(kl_nan.cpu().float().numpy(), 1)
-    else:
-        cross_ppl = (kl_div * shifted_attention_mask).sum(1) / shifted_attention_mask.sum(1)
-        cross_ppl = cross_ppl.to("cpu").float().numpy()
-
-    return cross_ppl
+    return Detectors._compute_entropy(
+        None,
+        observer_logits.to(device),
+        performer_logits.to(device),
+        performer_encoding.to(device),
+        pad_token_id,
+        median=median,
+        temperature=temperature
+    )
 
 
 def compute_binoculars_score(perplexity: np.ndarray, cross_perplexity: np.ndarray) -> np.ndarray:
@@ -142,7 +126,7 @@ def process_dataset_batch(
 
         batch_ppl = compute_perplexity(encodings, outputs.logits, median=median, temperature=temperature)
         batch_cross_ppl = compute_cross_perplexity(
-            encodings, outputs.logits, observer_model, device, median=median, temperature=temperature
+            encodings, outputs.logits, observer_model, device, tokenizer.pad_token_id, median=median, temperature=temperature
         )
         batch_bino = compute_binoculars_score(batch_ppl, batch_cross_ppl)
 

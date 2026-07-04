@@ -1,3 +1,8 @@
+import os
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import torch
 import numpy as np
 import transformers
@@ -5,6 +10,7 @@ from torch.nn.functional import cross_entropy as ce_loss_fn
 import matplotlib.pyplot as plt
 from typing import List, Tuple
 import seaborn as sns
+from llm_text_detectors import Detectors
 
 def telescope_perplexity(
     encoding: transformers.BatchEncoding,
@@ -12,19 +18,7 @@ def telescope_perplexity(
     median: bool = False,
     temperature: float = 1.0
     ):
-
-    shifted_logits = logits[..., :-1, :].contiguous() / temperature
-    shifted_labels = encoding.input_ids[..., :-1].contiguous()
-    shifted_attention_mask = encoding.attention_mask[..., :-1].contiguous()
-    if median:
-        ce_nan = (ce_loss_fn(shifted_logits.transpose(1, 2), shifted_labels).
-                  masked_fill(~shifted_attention_mask.bool(), float("nan")))
-        ppl = np.nanmedian(ce_nan.cpu().float().numpy(), 1)
-    else:
-        ppl = (ce_loss_fn(shifted_logits.transpose(1, 2), shifted_labels) *
-               shifted_attention_mask).sum(1) / shifted_attention_mask.sum(1)
-        ppl = ppl.to("cpu").float().numpy()
-    return ppl
+    return Detectors._compute_telescope_perplexity(None, encoding, logits, median, temperature)
 
 def get_token_probabilities(
     model: transformers.PreTrainedModel,

@@ -1,12 +1,14 @@
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+sys.path.insert(0, os.getcwd())
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 
-from src.utils import calc_bins
+from llm_text_detectors.utils import calc_bins
 
 
 ### START GLOBALS -------------------------------------------------------------------------

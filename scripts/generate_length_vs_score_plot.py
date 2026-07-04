@@ -1,5 +1,7 @@
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+sys.path.insert(0, os.getcwd())
 
 import numpy as np
 from sklearn.metrics import auc, roc_curve, precision_recall_curve
@@ -10,7 +12,7 @@ import yaml
 
 from confidenceinterval import f1_score, roc_auc_score
 
-from src.utils import create_logistic_regression_classifier
+from llm_text_detectors.utils import create_logistic_regression_classifier
 
 
 

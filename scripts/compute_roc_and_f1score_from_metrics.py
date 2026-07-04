@@ -1,5 +1,7 @@
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+sys.path.insert(0, os.getcwd())
 
 import pandas as pd
 import numpy as np
@@ -9,7 +11,7 @@ from confidenceinterval import f1_score, roc_auc_score
 import yaml, json
 from copy import deepcopy
 
-from src.utils import create_logistic_regression_classifier
+from llm_text_detectors.utils import create_logistic_regression_classifier
 
 
 

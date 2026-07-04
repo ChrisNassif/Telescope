@@ -2,6 +2,8 @@
 
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+sys.path.insert(0, os.getcwd())
 
 import numpy as np
 from sklearn.metrics import cohen_kappa_score, mutual_info_score, normalized_mutual_info_score
@@ -10,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import yaml
 
-from src.utils import create_logistic_regression_classifier
+from llm_text_detectors.utils import create_logistic_regression_classifier
 
 
 

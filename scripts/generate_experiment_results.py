@@ -1,14 +1,15 @@
 import sys; argv = sys.argv[1:]
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.getcwd())
 import pandas as pd
 from tqdm import tqdm
 import numpy as np
 
 from typing import Mapping
 from transformers import BitsAndBytesConfig
-from src.utils import get_hugging_face_auth_token
-from src import Detectors
+from llm_text_detectors.utils import get_hugging_face_auth_token
+from llm_text_detectors import Detectors
 import hashlib
 import time
 

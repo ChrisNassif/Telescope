@@ -40,8 +40,13 @@ conda init
 conda activate telescope
 ```
 
-**4. Install the telescope package in development mode**
-This allows you to use the telescope package in any directory in your python environment by just using "import telescope"
+**4. Install the package**
+You can install the telescope package directly from PyPI:
+```bash
+pip install telescope_llm_text_detection
+```
+
+Alternatively, to install it locally in development/editable mode:
 ```bash
 pip install -e .
 ```
@@ -89,7 +94,7 @@ git lfs clone https://huggingface.co/datasets/Aanimated/telescope_datasets datas
 
 ```
 telescope/                      # Repository root
-├── src/                        # Core pip package (install with: pip install -e .)
+├── llm_text_detectors/          # Core package folder (packaged as telescope_llm_text_detection)
 │   ├── __init__.py             # Exports Telescope, utils
 │   ├── llm_text_detectors.py   # Telescope detector class
 │   └── utils.py                # Utility functions (model loading, auth, shared helpers)
@@ -122,7 +127,7 @@ A **metric** is a numerical value computed from a reference model's outputs. Exa
 - Perplexity
 - DetectLLM LRR
 
-Additional experimental metrics are implemented in `src/llm_text_detectors.py`. Effective metrics show correlation with whether text was LLM-generated.
+Additional experimental metrics are implemented in `llm_text_detectors/llm_text_detectors.py`. Effective metrics show correlation with whether text was LLM-generated.
 
 ### Experiment Results
 **Experiment results** are CSV files containing data from running detection algorithms on specific datasets with specific reference models. Each result includes:
@@ -155,10 +160,30 @@ The `config.yaml` file stores global variables including:
 
 ## Usage
 
-In lieu of having command line arguments for every script, this codebase instead uses global variables at the top of each runnable script where you can set which arguments you want for things like which datasets or metrics to use. The reason for this is because specifying all of the metrics, datasets, models, etc takes up a lot of space and is annoying to keep track of in the runtime arguments of a script, so we just have all of in an easy place to see and edit. 
+### Python API Usage
 
+If you installed the package via PyPI, you can import and use the telescope detector in your own Python code:
+
+```python
+from telescope_llm_text_detection import Detectors
+from telescope_llm_text_detection.utils import get_hugging_face_auth_token
+
+# Initialize the detector
+performer_model = "HuggingFaceTB/SmolLM-360M-Instruct"
+observer_model = "HuggingFaceTB/SmolLM-360M"
+token = get_hugging_face_auth_token()
+
+detector = Detectors(observer_model, performer_model, token)
+
+# Compute telescope perplexity
+text = "Your text sample goes here."
+score = detector.compute_telescope_perplexity(text)
+print("Telescope Perplexity:", score)
+```
 
 ### Running Experiments
+In lieu of having command line arguments for every script, this codebase instead uses global variables at the top of each runnable script where you can set which arguments you want for things like which datasets or metrics to use. The reason for this is because specifying all of the metrics, datasets, models, etc takes up a lot of space and is annoying to keep track of in the runtime arguments of a script, so we just have all of in an easy place to see and edit. 
+
 If you would like to **Generate new experiment results** by running detection algorithms on datasets:
 
 ```bash
@@ -196,7 +221,7 @@ Experiment results contain only raw metric values. Analysis scripts compute perf
 
 ## Additional Metrics
 
-Various additional metrics are implemented in `src/llm_text_detectors.py` from our initial large-scale testing phase. While none proved as promising as Telescope Perplexity in our experiments, they remain available for further research and analysis.
+Various additional metrics are implemented in `llm_text_detectors/llm_text_detectors.py` from our initial large-scale testing phase. While none proved as promising as Telescope Perplexity in our experiments, they remain available for further research and analysis.
 
 
 ## Citation

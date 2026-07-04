@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 N-gram Perplexity Analysis for Human vs AI Text Detection
 Compares telescope and standard perplexity metrics using different n-gram approaches.
@@ -6,6 +5,9 @@ Compares telescope and standard perplexity metrics using different n-gram approa
 
 import os
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import argparse
 import torch
 import numpy as np
@@ -19,6 +21,7 @@ from tqdm import tqdm
 import json
 import logging
 from typing import List, Dict, Tuple, Optional
+from llm_text_detectors import Detectors
 
 # Configure logging
 logging.basicConfig(
@@ -26,49 +29,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-
-def telescope_perplexity(
-    encoding: transformers.BatchEncoding,
-    logits: torch.Tensor,
-    median: bool = False,
-    temperature: float = 1.0
-) -> np.ndarray:
-    """Calculate telescope perplexity for a given encoding and logits."""
-    shifted_logits = logits[..., :-1, :].contiguous() / temperature
-    shifted_labels = encoding.input_ids[..., :-1].contiguous()
-    shifted_attention_mask = encoding.attention_mask[..., :-1].contiguous()
-
-    ce_loss_fn = CrossEntropyLoss(reduction='none')
-
-    if median:
-        ce_nan = (ce_loss_fn(shifted_logits.transpose(1, 2), shifted_labels)
-                 .masked_fill(~shifted_attention_mask.bool(), float("nan")))
-        ppl = np.nanmedian(ce_nan.cpu().float().numpy(), 1)
-    else:
-        ppl = (ce_loss_fn(shifted_logits.transpose(1, 2), shifted_labels) * 
-               shifted_attention_mask).sum(1) / shifted_attention_mask.sum(1)
-        ppl = ppl.to("cpu").float().numpy()
-
-    return ppl
-
-
-def standard_perplexity(
-    encoding: transformers.BatchEncoding,
-    logits: torch.Tensor,
-    temperature: float = 1.0
-) -> np.ndarray:
-    """Calculate standard perplexity (exp of average cross-entropy loss)."""
-    shifted_logits = logits[..., :-1, :].contiguous() / temperature
-    shifted_labels = encoding.input_ids[..., 1:].contiguous()
-    shifted_attention_mask = encoding.attention_mask[..., 1:].contiguous()
-
-    ce_loss_fn = CrossEntropyLoss(reduction='none')
-    ce_loss = ce_loss_fn(shifted_logits.transpose(1, 2), shifted_labels)
-    masked_ce_loss = (ce_loss * shifted_attention_mask).sum(1) / shifted_attention_mask.sum(1)
-    perplexity = torch.exp(masked_ce_loss).to("cpu").float().numpy()
-
-    return perplexity
 
 
 def split_into_ngrams(text: str, n: int = 2) -> List[str]:
@@ -81,8 +41,7 @@ def split_into_ngrams(text: str, n: int = 2) -> List[str]:
 
 
 def calculate_perplexity_batch(
-    model: transformers.PreTrainedModel,
-    tokenizer: transformers.PreTrainedTokenizer,
+    detector: Detectors,
     texts: List[str],
     device: torch.device,
     batch_size: int = 8,
@@ -92,7 +51,7 @@ def calculate_perplexity_batch(
     temperature: float = 1.0
 ) -> List[float]:
     """Calculate perplexity for texts in batches."""
-    model.eval()
+    detector.performer_model.eval()
     results = []
 
     for i in tqdm(range(0, len(texts), batch_size), desc="Processing batches"):
@@ -106,20 +65,21 @@ def calculate_perplexity_batch(
                     continue
 
                 try:
-                    encodings = tokenizer(
+                    encodings = detector.performer_tokenizer(
                         text, 
                         return_tensors="pt", 
                         truncation=True, 
                         max_length=max_length
                     ).to(device)
                     
-                    outputs = model(**encodings)
+                    outputs = detector.performer_model(**encodings)
                     logits = outputs.logits
 
                     if use_standard_ppl:
-                        ppl = standard_perplexity(encodings, logits, temperature)
+                        ppl = detector._compute_perplexity(encodings, logits, median=median, temperature=temperature)
+                        ppl = np.exp(ppl)
                     else:
-                        ppl = telescope_perplexity(encodings, logits, median, temperature)
+                        ppl = detector._compute_telescope_perplexity(encodings, logits, median, temperature)
 
                     batch_results.append(ppl[0])
 
@@ -143,8 +103,7 @@ def calculate_perplexity_batch(
 
 
 def calculate_ngram_perplexity(
-    model: transformers.PreTrainedModel,
-    tokenizer: transformers.PreTrainedTokenizer,
+    detector: Detectors,
     texts: List[str],
     device: torch.device,
     n: int = 2,
@@ -155,7 +114,7 @@ def calculate_ngram_perplexity(
     temperature: float = 1.0
 ) -> List[float]:
     """Calculate perplexity by splitting each text into n-grams first."""
-    model.eval()
+    detector.performer_model.eval()
     all_results = []
 
     with torch.no_grad():
@@ -174,7 +133,7 @@ def calculate_ngram_perplexity(
                 batch_ngrams = ngrams[i:i+batch_size]
 
                 try:
-                    batch_encodings = tokenizer(
+                    batch_encodings = detector.performer_tokenizer(
                         batch_ngrams, 
                         padding=True, 
                         truncation=True,
@@ -182,13 +141,14 @@ def calculate_ngram_perplexity(
                         return_tensors="pt"
                     ).to(device)
                     
-                    batch_outputs = model(**batch_encodings)
+                    batch_outputs = detector.performer_model(**batch_encodings)
                     batch_logits = batch_outputs.logits
 
                     if use_standard_ppl:
-                        batch_ppl = standard_perplexity(batch_encodings, batch_logits, temperature)
+                        batch_ppl = detector._compute_perplexity(batch_encodings, batch_logits, median=median, temperature=temperature)
+                        batch_ppl = np.exp(batch_ppl)
                     else:
-                        batch_ppl = telescope_perplexity(batch_encodings, batch_logits, median, temperature)
+                        batch_ppl = detector._compute_telescope_perplexity(batch_encodings, batch_logits, median, temperature)
 
                     text_results.extend(batch_ppl)
 
@@ -196,14 +156,15 @@ def calculate_ngram_perplexity(
                     logger.warning(f"Error processing n-gram batch: {str(e)}")
                     for ngram in batch_ngrams:
                         try:
-                            encodings = tokenizer(ngram, return_tensors="pt").to(device)
-                            outputs = model(**encodings)
+                            encodings = detector.performer_tokenizer(ngram, return_tensors="pt").to(device)
+                            outputs = detector.performer_model(**encodings)
                             logits = outputs.logits
 
                             if use_standard_ppl:
-                                ppl = standard_perplexity(encodings, logits, temperature)
+                                ppl = detector._compute_perplexity(encodings, logits, median=median, temperature=temperature)
+                                ppl = np.exp(ppl)
                             else:
-                                ppl = telescope_perplexity(encodings, logits, median, temperature)
+                                ppl = detector._compute_telescope_perplexity(encodings, logits, median, temperature)
 
                             text_results.append(ppl[0])
                         except Exception as e2:
@@ -331,13 +292,14 @@ def main():
     if args.device == "cuda" and not torch.cuda.is_available():
         logger.warning("CUDA not available, falling back to CPU")
     
-    # Load model and tokenizer
+    # Load model via Detectors
+    from llm_text_detectors.utils import get_hugging_face_auth_token
+    token = get_hugging_face_auth_token()
     logger.info(f"Loading model: {args.model}")
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
-    model = AutoModelForCausalLM.from_pretrained(args.model).to(device)
+    detector = Detectors(args.model, args.model, token)
     
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+    if detector.performer_tokenizer.pad_token is None:
+        detector.performer_tokenizer.pad_token = detector.performer_tokenizer.eos_token
     
     # Load dataset
     human_texts, ai_texts = load_hc3_dataset(args.sample_size)
@@ -354,7 +316,7 @@ def main():
         logger.info(f"Processing {ppl_type} perplexity...")
         
         human_normal = calculate_perplexity_batch(
-            model, tokenizer, human_texts, device,
+            detector, human_texts, device,
             batch_size=args.batch_size,
             use_standard_ppl=use_standard,
             max_length=args.max_length,
@@ -363,7 +325,7 @@ def main():
         )
         
         ai_normal = calculate_perplexity_batch(
-            model, tokenizer, ai_texts, device,
+            detector, ai_texts, device,
             batch_size=args.batch_size,
             use_standard_ppl=use_standard,
             max_length=args.max_length,
@@ -384,7 +346,7 @@ def main():
             logger.info(f"Calculating {n}-gram {ppl_type} perplexity...")
             
             human_ngram = calculate_ngram_perplexity(
-                model, tokenizer, human_texts, device,
+                detector, human_texts, device,
                 n=n,
                 batch_size=args.ngram_batch_size,
                 use_standard_ppl=use_standard,
@@ -394,7 +356,7 @@ def main():
             )
             
             ai_ngram = calculate_ngram_perplexity(
-                model, tokenizer, ai_texts, device,
+                detector, ai_texts, device,
                 n=n,
                 batch_size=args.ngram_batch_size,
                 use_standard_ppl=use_standard,

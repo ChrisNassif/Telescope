@@ -7,7 +7,7 @@ import torch
 import transformers
 from transformers import AutoModelForCausalLM, BatchEncoding, PreTrainedTokenizer
 
-from src.utils import load_model_and_tokenizer
+from .utils import load_model_and_tokenizer
 
 ce_loss_fn = torch.nn.CrossEntropyLoss(reduction="none")
 softmax_fn = torch.nn.Softmax(dim=-1)

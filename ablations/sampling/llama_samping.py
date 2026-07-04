@@ -1,7 +1,11 @@
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from llm_text_detectors import Detectors
 import torch
-from src import Detectors
 import pandas as pd
 import numpy as np
 from typing import Dict, List
@@ -218,7 +222,7 @@ if __name__ == "__main__":
     performer_model = "HuggingFaceTB/SmolLM-135M-instruct"
     
     try:
-        from src.utils import get_hugging_face_auth_token
+        from llm_text_detectors.utils import get_hugging_face_auth_token
         token = get_hugging_face_auth_token()
             
         telescope = Detectors(observer_model, performer_model, token)
