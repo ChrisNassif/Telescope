@@ -1,0 +1,26 @@
+{
+    "step": 90300.0,
+    "telescope_perplexity": [
+        9.9296875
+    ],
+    "telescope_cross_perplexity": [
+        3.75390625
+    ],
+    "causal_perplexity": 3.896484375,
+    "performer_model_entropy": NaN,
+    "observer_model_entropy": NaN,
+    "entropy_ratio": NaN,
+    "kl_divergence": NaN,
+    "performer_total_variation_distance": 0.8089353442192078,
+    "observer_total_variation_distance": 0.8089353442192078,
+    "performer_distribution_overlap": 0.1909458190202713,
+    "observer_distribution_overlap": 0.1909458190202713,
+    "performer_logits_std": 0.0020809173583984375,
+    "observer_logits_std": 0.0020809173583984375,
+    "shifted1_telescope_perplexity": Infinity,
+    "shifted1_telescope_cross_perplexity": NaN,
+    "shifted2_telescope_perplexity": Infinity,
+    "shifted2_telescope_cross_perplexity": NaN,
+    "shifted3_telescope_perplexity": Infinity,
+    "shifted3_telescope_cross_perplexity": NaN
+}
