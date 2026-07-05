@@ -33,20 +33,25 @@ Follow the [official Miniconda installation guide](https://docs.conda.io/en/late
 **2. Install Git and Git LFS**  
 Follow the official guides to install [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) and [Git LFS](https://git-lfs.com/) for your operating system.
 
-**3. Create and activate the environment**
+**3. Download the repository**
+```bash
+git clone https://github.com/ChrisNassif/Telescope && cd Telescope
+```
+
+**4. Create and activate the custom python environment using conda**
 ```bash
 conda env create -f telescope_env.yml
 conda init
 conda activate telescope
 ```
 
-**4. Install the package**
-You can install the telescope package directly from PyPI:
+**5. Install the package**
+The recommended way to install the telescope package is directly from PyPI:
 ```bash
 pip install telescope_llm_text_detection
 ```
 
-Alternatively, to install it locally in development/editable mode:
+Alternatively, to install it locally in development/editable mode if you would like to edit the code:
 ```bash
 pip install -e .
 ```
