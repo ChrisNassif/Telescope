@@ -28,7 +28,7 @@ Telescope introduces a new metric for detecting LLM-generated content in zero-sh
 > [!NOTE]
 > Below is the average AUROC performance across 12 reference models on diverse datasets. Bolded values inside badges indicate the best performance per dataset.
 > 
-> *Averaging across reference models can obscure specific per-model or operational gains. For instance, on **Detect LLM Text**, Telescope's **0.99219** AUROC vs. standard Perplexity's **0.89307** corresponds to a **15x error rate reduction** (from 0.10 down to 0.0068). On **ESL GPT4o Mini**, the gap corresponds to an error-rate reduction of more than three orders of magnitude. See our paper's Appendix for the full results.*
+> *See our paper's Appendix for the full results.*
 
 | Dataset | Telescope (ours) | Binoculars | Perplexity | DetectLLM | Fast-DetectGPT |
 | :--- | :---: | :---: | :---: | :---: | :---: |
