@@ -14,9 +14,42 @@
     <a href="https://huggingface.co/datasets/Aanimated/telescope_experiment_results">Raw Results</a>
 </p>
 
+<br>
+
 ## Overview
 
 Telescope introduces a new metric for detecting LLM-generated content in zero-shot settings by analyzing token repetition patterns. This repository contains the complete implementation and links to the datasets and experimental results from our research.
+
+<!-- BEGIN PERFORMANCE TABLE -->
+<br>
+
+### Performance Comparison (Average AUROC)
+
+> [!NOTE]
+> Below is the average AUROC performance across 12 reference models on diverse datasets. Bold indicates the best performance per dataset.
+> 
+> *Averaging across reference models can obscure specific per-model or operational gains. For instance, on **Detect LLM Text**, Telescope's $0.99219$ AUROC vs. standard Perplexity's $0.89307$ corresponds to a **$15\times$ error rate reduction** (from $1.0\times 10^{-1}$ down to $6.8\times 10^{-3}$). On **ESL GPT4o Mini**, the gap corresponds to an error-rate reduction of more than three orders of magnitude. See Appendix Section 5.1 of the paper for full details.*
+
+| Dataset | Telescope (ours) | Binoculars | Perplexity | DetectLLM | Fast-DetectGPT |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Detect LLM Text** | **0.99219** | 0.76588 | 0.89307 | 0.92981 | 0.70085 |
+| **AI vs Human** | **0.95143** | 0.86297 | 0.90743 | 0.90316 | 0.75608 |
+| **HC3** | 0.99155 | 0.99441 | **0.99471** | 0.98436 | 0.95584 |
+| **HC3 Plus** | **0.98451** | 0.88510 | 0.90999 | 0.87758 | 0.83575 |
+| **ESL GPT4o Mini** | **0.99983** | 0.79637 | 0.82523 | 0.69051 | 0.60603 |
+| **GB Essay ChatGPT** | 0.98628 | 0.88434 | **0.99810** | 0.99730 | 0.55624 |
+| **GB News ChatGPT** | 0.90480 | 0.98773 | 0.98817 | **0.99050** | 0.91940 |
+| **GB Creative ChatGPT** | **0.99397** | 0.91846 | 0.94990 | 0.91852 | 0.52336 |
+| **GB Essay GPT4o** | 0.98136 | 0.85505 | **0.99365** | 0.99163 | 0.51477 |
+| **GB Creative GPT4o** | **0.99271** | 0.91276 | 0.92303 | 0.87374 | 0.63813 |
+| **GB News Claude** | 0.88038 | **0.89263** | 0.87211 | 0.86317 | 0.77787 |
+| **GB Creative Claude** | **0.96604** | 0.82929 | 0.89304 | 0.87449 | 0.60276 |
+| **GB Essay Claude** | 0.94223 | 0.77288 | 0.94310 | **0.95988** | 0.61633 |
+| **GB Essay Deepseek V3** | 0.98484 | 0.99225 | **0.99881** | 0.99680 | 0.82763 |
+| **GB Creative Deepseek V3** | 0.98199 | **0.99569** | 0.98852 | 0.96391 | 0.90439 |
+<!-- END PERFORMANCE TABLE -->
+
+<br>
 
 ## Installation
 
@@ -24,7 +57,7 @@ Telescope introduces a new metric for detecting LLM-generated content in zero-sh
 - Python 3.10 or higher
 - Hugging Face account (for accessing certain models)
 
-### Setup Instructions
+### Setup Instructions For Python Packages
 
 **1. Install Miniconda**  
 Follow the [official Miniconda installation guide](https://docs.conda.io/en/latest/miniconda.html) for your operating system.
@@ -57,7 +90,7 @@ pip install -e .
 
 All required packages should now be installed. If you encounter any missing dependencies, issues, or other hiccups during installation or usage, please [open an issue](../../issues).
 
-### Hugging Face Authentication
+### Setup Hugging Face Authentication
 
 Some models used in this work require authentication. To set up your Hugging Face token:
 
@@ -82,9 +115,9 @@ echo "export HF_TOKEN=XXXXXXXX" >> ~/.bashrc
 
 
 
-### Datasets and Experiment Results
+### Setup and Download Datasets and Experiment Results
 
-Download the datasets and experiment results using the following commands. Please note that they are fairly large and will consume approximately 38 GB of storage.
+Download the datasets and experiment results using the following commands. Please note that they are fairly large and will consume approximately 40 GB of storage.
 
 ```bash
 # Download experiment results
@@ -96,6 +129,8 @@ git lfs clone https://huggingface.co/datasets/Aanimated/telescope_datasets datas
 # Download original ghostbusters datasets (only needed if you want to generate new ghostbusters datasets)
 git lfs clone https://github.com/ChrisNassif/telescope_original_ghostbusters_datasets ghostbusters_dataset_creation/original_ghostbusters_datasets
 ```
+
+<br>
 
 ## Project Structure
 
@@ -124,6 +159,8 @@ telescope/                      # Repository root
 ├── pyproject.toml              # Package configuration
 └── telescope_env.yml           # Conda environment specification
 ```
+
+<br>
 
 ## Key Concepts and Definitions
 
@@ -165,6 +202,8 @@ The `config.yaml` file stores global variables including:
 
 
 
+<br>
+
 ## Usage
 
 ### Python API Usage
@@ -191,7 +230,7 @@ print("Telescope Perplexity:", score)
 ### Running Experiments
 In lieu of having command line arguments for every script, this codebase instead uses global variables at the top of each runnable script where you can set which arguments you want for things like which datasets or metrics to use. The reason for this is because specifying all of the metrics, datasets, models, etc takes up a lot of space and is annoying to keep track of in the runtime arguments of a script, so we just have all of in an easy place to see and edit. 
 
-If you would like to **Generate new experiment results** by running detection algorithms on datasets:
+If you would like to **generate new experiment results** by running detection algorithms on datasets:
 
 ```bash
 python scripts/generate_experiment_results.py
@@ -226,13 +265,28 @@ Experiment results contain only raw metric values. Analysis scripts compute perf
 
 
 
+<br>
+
 ## Additional Metrics
 
 Various additional metrics are implemented in `llm_text_detectors/llm_text_detectors.py` from our initial large-scale testing phase. While none proved as promising as Telescope Perplexity in our experiments, they remain available for further research and analysis.
 
 
+<br>
+
 ## Future Work
 
+
+
+<br>
+
+
+
+## License
+
+CC BY-NC-SA 4.0
+
+<br>
 
 
 ## Citation
@@ -250,9 +304,7 @@ If you use Telescope in your research, please cite our paper:
 }
 ```
 
-## License
-
-CC BY-NC-SA 4.0
+<br>
 
 ## Contact
 
