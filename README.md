@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-Paper (Coming Soon on Arxiv) •
-[Datasets](https://huggingface.co/datasets/Aanimated/telescope_datasets) •
-[Raw Results](https://huggingface.co/datasets/Aanimated/telescope_experiment_results)
+    Paper (Coming Soon on Arxiv) •
+    <a href="https://huggingface.co/datasets/Aanimated/telescope_datasets">Datasets</a> •
+    <a href="https://huggingface.co/datasets/Aanimated/telescope_experiment_results">Raw Results</a>
 </p>
 
 ## Overview
@@ -22,7 +22,6 @@ Telescope introduces a new metric for detecting LLM-generated content in zero-sh
 
 ### Prerequisites
 - Python 3.10 or higher
-- Miniconda or Anaconda
 - Hugging Face account (for accessing certain models)
 
 ### Setup Instructions

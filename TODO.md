@@ -1,8 +1,5 @@
 make sure all of the ablations aren't inefficient and rerun all of them to ensure they work
 
-Make a pip package for telescope so its easy to import and easy to use
-
-
 Where is the reuters conversion script?
 
 rename all of the dataset creation scripts and make sure they all work
@@ -20,6 +17,7 @@ make all of the plots in the repository follow the config.yaml for all of the pl
 
 
 make sure that the telescope perplexity is or is not equivalent to the skip the first 20 tokens version and see whether or not we should mention that in the code/ paper? They are not equivalent. Make sure that this is noted somewhere that token skipping may slightly increase performance because it cuts through some of the noise early on in the text. Oftentimes early token information is just noise since there is less information to work off of.
+
 
 
 
