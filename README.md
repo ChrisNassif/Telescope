@@ -276,6 +276,11 @@ Various additional metrics are implemented in `llm_text_detectors/llm_text_detec
 
 ## Future Work
 
+Future work may focus on finding novel ways to combine different zero shot LLM text detection metrics by training various types of meta classifiers that are trained on a combination of the original text and various metrics such as telescope_perplexity, binoculars_score, fast_detectgpt, etc etc. 
+
+Additionally, future work may further explore the impact of skipping the metric computation on the first `n` tokens when a metric averages across tokens. For example, telescope perplexity can be computed at a token level and then averaged across all of the tokens in a text; earlier tokens in a sequence may have a bit less information and thus may be less useful to detection performance, so skipping the computation on the first `n` tokens and averaging across the rest of the tokens may reduce variance slightly, especially for shorter texts.
+
+Finally, as new models continue to release at a rapid pace, it is imperative that techniques continue to be benchmarked against the frontier models to ensure that detector performance is still high for popular language models. Likewise, the search for effective reference models also never ends, and it is also not entirely clear why exactly certain reference models perform well with certain techniques, so this is also another area to be explored.
 
 
 <br>
@@ -308,4 +313,4 @@ If you use Telescope in your research, please cite our paper:
 
 ## Contact
 
-For questions or collaboration opportunities, please [open an issue](../../issues) or contact [contact information].
+For questions or collaboration opportunities, please [open an issue](../../issues) or contact [chrisjnassif@gmail.com].
