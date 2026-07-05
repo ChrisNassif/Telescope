@@ -5,7 +5,7 @@ Where is the reuters conversion script?
 rename all of the dataset creation scripts and make sure they all work
 
 
-make all of the plots in the repository follow the config.yaml for all of the plot coloring where it makes
+make all of the plots in the repository follow the config.yaml for all of the plot coloring where it makes sense
 
 
 

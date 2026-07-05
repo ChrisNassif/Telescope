@@ -20,15 +20,15 @@
 
 Telescope introduces a new metric for detecting LLM-generated content in zero-shot settings by analyzing token repetition patterns. This repository contains the complete implementation and links to the datasets and experimental results from our research.
 
-<!-- BEGIN PERFORMANCE TABLE -->
+
 <br>
 
 ### Performance Comparison (Average AUROC)
 
 > [!NOTE]
-> Below is the average AUROC performance across 12 reference models on diverse datasets. Bold indicates the best performance per dataset.
+> Below is the average AUROC performance across 12 reference models on diverse datasets. Bolded values inside badges indicate the best performance per dataset.
 > 
-> *Averaging across reference models can obscure specific per-model or operational gains. For instance, on **Detect LLM Text**, Telescope's $0.99219$ AUROC vs. standard Perplexity's $0.89307$ corresponds to a **$15\times$ error rate reduction** (from $1.0\times 10^{-1}$ down to $6.8\times 10^{-3}$). On **ESL GPT4o Mini**, the gap corresponds to an error-rate reduction of more than three orders of magnitude. See Appendix Section 5.1 of the paper for full details.*
+> *Averaging across reference models can obscure specific per-model or operational gains. For instance, on **Detect LLM Text**, Telescope's **0.99219** AUROC vs. standard Perplexity's **0.89307** corresponds to a **15x error rate reduction** (from 0.10 down to 0.0068). On **ESL GPT4o Mini**, the gap corresponds to an error-rate reduction of more than three orders of magnitude. See our paper's Appendix for the full results.*
 
 | Dataset | Telescope (ours) | Binoculars | Perplexity | DetectLLM | Fast-DetectGPT |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -47,7 +47,7 @@ Telescope introduces a new metric for detecting LLM-generated content in zero-sh
 | **GB Essay Claude** | 0.94223 | 0.77288 | 0.94310 | **`0.95988`** | 0.61633 |
 | **GB Essay Deepseek V3** | 0.98484 | 0.99225 | **`0.99881`** | 0.99680 | 0.82763 |
 | **GB Creative Deepseek V3** | 0.98199 | **`0.99569`** | 0.98852 | 0.96391 | 0.90439 |
-<!-- END PERFORMANCE TABLE -->
+
 
 <br>
 
