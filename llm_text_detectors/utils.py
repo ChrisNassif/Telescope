@@ -2,7 +2,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, PreTrainedModel, P
 import torch
 import os
 import numpy as np
-
+import huggingface_hub
 from typing import Tuple
 
 from sklearn.pipeline import make_pipeline, Pipeline
@@ -53,7 +53,9 @@ def load_model_and_tokenizer(model_path: str, hugging_face_auth_token: str = Non
 def get_hugging_face_auth_token():
     token = os.environ.get("HF_TOKEN")
     if not token:
-        raise EnvironmentError("HF_TOKEN environment variable is not set. Please set it with your Hugging Face token.")
+        huggingface_hub.login()
+    else:
+        raise EnvironmentError("HF_TOKEN environment variable is not set and login failed. Please set token with your Hugging Face token or login.")
     return token
 
 
