@@ -82,7 +82,7 @@ class Detectors:
         observer_model_logits = observer_model_logits.to(torch.float32)
 
         causal_perplexity = self._compute_perplexity(text_encodings, performer_model_logits)
-        cross_perplexity = self._compute_cross_perplexity(text_encodings.to(device), observer_model_logits.to(device), performer_model_logits.to(device), self.performer_tokenizer.pad_token_id)
+        cross_perplexity = self._compute_cross_perplexity(text_encodings, observer_model_logits, performer_model_logits, self.performer_tokenizer.pad_token_id)
 
         return float(causal_perplexity) / float(cross_perplexity)
 
@@ -108,10 +108,7 @@ class Detectors:
         performer_model_logits, observer_model_logits, text_encodings = self._compute_logits(text, self.performer_model, self.observer_model, self.performer_tokenizer, device=device)
         observer_model_logits = observer_model_logits.to(torch.float32)
 
-        logits_ref_sliced = observer_model_logits[:-1]
-        logits_score_sliced = observer_model_logits[:-1]
-
-        return self._compute_fast_detectgpt(text_encodings, logits_ref_sliced, logits_score_sliced)
+        return self._compute_fast_detectgpt(text_encodings, observer_model_logits, observer_model_logits)
         
 
 
@@ -203,17 +200,13 @@ class Detectors:
 
         # Normal Perplexity and Cross Perplexity (Binoculars)
         causal_perplexity = self._compute_perplexity(text_encodings, performer_model_logits)
-        cross_perplexity = self._compute_cross_perplexity(text_encodings.to(device), observer_model_logits.to(device), performer_model_logits.to(device), self.performer_tokenizer.pad_token_id)
+        cross_perplexity = self._compute_cross_perplexity(text_encodings, observer_model_logits, performer_model_logits, self.performer_tokenizer.pad_token_id)
 
         # DetectLLM Log Rank Ratio
         log_rank_ratio = self._compute_log_rank_ratio(text_encodings, performer_model_logits)
 
         # Fast-DetectGPT 
-        logits_ref_sliced = observer_model_logits[:-1]
-        logits_score_sliced = observer_model_logits[:-1]
-        labels_sliced = text_input_ids[1:]
-
-        fast_detectgpt_score = self._compute_fast_detectgpt(text_encodings, logits_ref_sliced, logits_score_sliced)
+        fast_detectgpt_score = self._compute_fast_detectgpt(text_encodings, observer_model_logits, observer_model_logits)
 
 
 
@@ -465,6 +458,10 @@ class Detectors:
         Returns:
             float: The analytic Fast-DetectGPT score.
         """
+        # Slice logits to align with predictions (last token doesn't predict anything)
+        logits_ref = logits_ref[:-1]
+        logits_score = logits_score[:-1]
+
         # Ensure shapes match
         if logits_ref.size(-1) != logits_score.size(-1):
             vocab_size = min(logits_ref.size(-1), logits_score.size(-1))
