@@ -68,7 +68,7 @@ class Detectors:
         performer_model_logits = performer_model_logits.to(torch.float32)        
         return self._compute_perplexity(text_encodings, performer_model_logits)
 
-    # TODO TEST THIS TO MAKE SURE ITS EQUIVALENT
+
     def compute_binoculars_score(self, text: Union[str, List[str]], device: torch.device = None) -> float:
         """
         Returns:
@@ -320,13 +320,13 @@ class Detectors:
         shifted_labels = text_encoding.input_ids[:-1].contiguous()
         shifted_attention_mask = text_encoding.attention_mask[:-1].contiguous()
 
-        ce_losses = cross_entropy_loss_function(shifted_logits, shifted_labels)
+        cross_entropy_losses = cross_entropy_loss_function(shifted_logits, shifted_labels)
 
         if median:
-            valid_ce = ce_losses[shifted_attention_mask.bool()]
-            telescope_perplexity = valid_ce.median()
+            valid_cross_entropy = cross_entropy_losses[shifted_attention_mask.bool()]
+            telescope_perplexity = valid_cross_entropy.median()
         else:
-            telescope_perplexity = (ce_losses * shifted_attention_mask).sum() / shifted_attention_mask.sum()
+            telescope_perplexity = (cross_entropy_losses * shifted_attention_mask).sum() / shifted_attention_mask.sum()
 
         return float(telescope_perplexity.item())
 
@@ -359,13 +359,13 @@ class Detectors:
         shifted_labels = text_encoding.input_ids[1:].contiguous()
         shifted_attention_mask = text_encoding.attention_mask[1:].contiguous()
 
-        ce_losses = cross_entropy_loss_function(shifted_logits, shifted_labels)
+        cross_entropy_losses = cross_entropy_loss_function(shifted_logits, shifted_labels)
 
         if median:
-            valid_ce = ce_losses[shifted_attention_mask.bool()]
-            perplexity = valid_ce.median()
+            valid_cross_entropy = cross_entropy_losses[shifted_attention_mask.bool()]
+            perplexity = valid_cross_entropy.median()
         else:
-            perplexity = (ce_losses * shifted_attention_mask).sum() / shifted_attention_mask.sum()
+            perplexity = (cross_entropy_losses * shifted_attention_mask).sum() / shifted_attention_mask.sum()
 
         return float(perplexity.item())
 
@@ -408,16 +408,16 @@ class Detectors:
         if sample_p:
             p_proba = torch.multinomial(p_proba, replacement=True, num_samples=1).view(-1)
 
-        ce_losses = cross_entropy_loss_function(input=q_scores, target=p_proba)
+        cross_entropy_losses = cross_entropy_loss_function(input=q_scores, target=p_proba)
         padding_mask = (text_encoding.input_ids != pad_token_id).type(torch.uint8)
 
         if median:
-            valid_ce = ce_losses[padding_mask.bool()]
-            agg_ce = valid_ce.median()
+            valid_cross_entropy = cross_entropy_losses[padding_mask.bool()]
+            aggregated_cross_entropy = valid_cross_entropy.median()
         else:
-            agg_ce = (ce_losses * padding_mask).sum() / padding_mask.sum()
+            aggregated_cross_entropy = (cross_entropy_losses * padding_mask).sum() / padding_mask.sum()
 
-        return float(agg_ce.item())
+        return float(aggregated_cross_entropy.item())
 
 
     def _compute_log_rank_ratio(self, text_encoding: transformers.BatchEncoding, logits: torch.Tensor) -> float:
@@ -512,9 +512,9 @@ class Detectors:
         token_tv = 0.5 * torch.sum(abs_diff, dim=-1)
 
         mask = text_encoding.attention_mask[1:]
-        avg_tv = (token_tv * mask).sum() / mask.sum().float()
+        average_total_variation = (token_tv * mask).sum() / mask.sum().float()
 
-        return float(avg_tv.item())
+        return float(average_total_variation.item())
 
 
     def _compute_distribution_overlap(

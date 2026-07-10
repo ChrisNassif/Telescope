@@ -106,9 +106,9 @@ def create_calibration_plot(data, metric, model_name, output_path, dataset_name=
         color=PLOT_COLORS[0], label=f'Original (Brier: {brier_score_loss(y_true, y_prob):.3f})'
     )
     
-    ir = IsotonicRegression(out_of_bounds='clip')
-    ir.fit(y_prob, y_true)
-    y_prob_isotonic = ir.predict(y_prob)
+    isotonic_regression = IsotonicRegression(out_of_bounds='clip')
+    isotonic_regression.fit(y_prob, y_true)
+    y_prob_isotonic = isotonic_regression.predict(y_prob)
     
     prob_true_isotonic, prob_pred_isotonic = calibration_curve(y_true, y_prob_isotonic, n_bins=n_bins)
     
@@ -173,9 +173,9 @@ def save_calibration_stats(data, metric, model_name, output_path, dataset_name=N
         y_prob = normalized_values
         direction = "original"
     
-    ir = IsotonicRegression(out_of_bounds='clip')
-    ir.fit(y_prob, y_true)
-    y_prob_isotonic = ir.predict(y_prob)
+    isotonic_regression = IsotonicRegression(out_of_bounds='clip')
+    isotonic_regression.fit(y_prob, y_true)
+    y_prob_isotonic = isotonic_regression.predict(y_prob)
     
     brier_original = brier_score_loss(y_true, y_prob)
     brier_isotonic = brier_score_loss(y_true, y_prob_isotonic)

@@ -73,23 +73,23 @@ def train_multi_feature_classifier(features_df: pd.DataFrame, labels: np.ndarray
     Returns:
         Trained classifier pipeline
     """
-    clf: Pipeline = make_pipeline(StandardScaler(), LogisticRegression())
-    clf.fit(features_df, labels)
-    return clf
+    classifier: Pipeline = make_pipeline(StandardScaler(), LogisticRegression())
+    classifier.fit(features_df, labels)
+    return classifier
 
-def evaluate_classifier(clf: Pipeline, features_df: pd.DataFrame, labels: np.ndarray) -> Dict[str, float]:
+def evaluate_classifier(classifier: Pipeline, features_df: pd.DataFrame, labels: np.ndarray) -> Dict[str, float]:
     """
     Evaluates a classifier using ROC AUC and F1 score
     
     Args:
-        clf: Trained classifier
+        classifier: Trained classifier
         features_df: DataFrame containing features
         labels: Array of true labels
     
     Returns:
         Dictionary containing evaluation metrics
     """
-    predictions = clf.predict_proba(features_df)[:, 1]  # Get probability of positive class
+    predictions = classifier.predict_proba(features_df)[:, 1]  # Get probability of positive class
     
     # Calculate ROC AUC
     fpr, tpr, _ = roc_curve(labels, predictions)

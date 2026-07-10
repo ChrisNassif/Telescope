@@ -294,27 +294,27 @@ def process_dataset(dataset_codename):
     plot_agreement_heatmap(mutual_info_matrix, classifier_keys, 'mutual_info', dataset_codename)
     
     # Calculate average statistics for each classifier (how independent it is from others)
-    avg_kappa = np.zeros(n_classifiers)
-    avg_q = np.zeros(n_classifiers)
-    avg_mi = np.zeros(n_classifiers)
+    average_kappa = np.zeros(n_classifiers)
+    average_q_statistic = np.zeros(n_classifiers)
+    average_mutual_information = np.zeros(n_classifiers)
     
     for i in range(n_classifiers):
         # Calculate average agreement with all other classifiers (excluding self)
         others = list(range(n_classifiers))
         others.remove(i)
         
-        avg_kappa[i] = np.mean(kappa_matrix[i, others])
-        avg_q[i] = np.mean(q_statistic_matrix[i, others])
-        avg_mi[i] = np.mean(mutual_info_matrix[i, others])
+        average_kappa[i] = np.mean(kappa_matrix[i, others])
+        average_q_statistic[i] = np.mean(q_statistic_matrix[i, others])
+        average_mutual_information[i] = np.mean(mutual_info_matrix[i, others])
     
     summary_df = pd.DataFrame({
         'Classifier': classifier_keys,
-        'Avg_Kappa': avg_kappa,
-        'Avg_Q_Statistic': avg_q,
-        'Avg_Mutual_Info': avg_mi,
+        'Average_Kappa': average_kappa,
+        'Average_Q_Statistic': average_q_statistic,
+        'Average_Mutual_Info': average_mutual_information,
     })
     
-    summary_df = summary_df.sort_values('Avg_Q_Statistic')
+    summary_df = summary_df.sort_values('Average_Q_Statistic')
     
     summary_path = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{dataset_codename}_summary.csv"
     summary_df.to_csv(summary_path, index=False)
@@ -380,9 +380,9 @@ def aggregate_results(all_results):
     plot_agreement_heatmap(agg_q, all_keys, 'q_statistic', 'aggregated', vmin=-1, vmax=1)
     plot_agreement_heatmap(agg_mi, all_keys, 'mutual_info', 'aggregated')
     
-    avg_kappa = np.zeros(n_keys)
-    avg_q = np.zeros(n_keys)
-    avg_mi = np.zeros(n_keys)
+    average_kappa = np.zeros(n_keys)
+    average_q_statistic = np.zeros(n_keys)
+    average_mutual_information = np.zeros(n_keys)
     
     for i in range(n_keys):
         others = list(range(n_keys))
@@ -392,30 +392,30 @@ def aggregate_results(all_results):
         q_values = [agg_q[i, j] for j in others if count_matrix[i, j] > 0]
         mi_values = [agg_mi[i, j] for j in others if count_matrix[i, j] > 0]
         
-        avg_kappa[i] = np.mean(kappa_values) if kappa_values else np.nan
-        avg_q[i] = np.mean(q_values) if q_values else np.nan
-        avg_mi[i] = np.mean(mi_values) if mi_values else np.nan
+        average_kappa[i] = np.mean(kappa_values) if kappa_values else np.nan
+        average_q_statistic[i] = np.mean(q_values) if q_values else np.nan
+        average_mutual_information[i] = np.mean(mi_values) if mi_values else np.nan
     
 
     agg_summary_df = pd.DataFrame({
         'Classifier': all_keys,
-        'Avg_Kappa': avg_kappa,
-        'Avg_Q_Statistic': avg_q,
-        'Avg_Mutual_Info': avg_mi,
+        'Average_Kappa': average_kappa,
+        'Average_Q_Statistic': average_q_statistic,
+        'Average_Mutual_Info': average_mutual_information,
     })
     
 
-    agg_summary_df = agg_summary_df.sort_values('Avg_Q_Statistic')
+    agg_summary_df = agg_summary_df.sort_values('Average_Q_Statistic')
     
     agg_summary_path = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/aggregated_summary.csv"
     agg_summary_df.to_csv(agg_summary_path, index=False)
     print(f"\nSaved aggregated summary to {agg_summary_path}")
     
     print("\nTop 5 most independent classifiers (lowest Q-statistic):")
-    print(agg_summary_df.head(5)[['Classifier', 'Avg_Q_Statistic']])
+    print(agg_summary_df.head(5)[['Classifier', 'Average_Q_Statistic']])
     
     print("\nTop 5 most dependent classifiers (highest Q-statistic):")
-    print(agg_summary_df.tail(5)[['Classifier', 'Avg_Q_Statistic']])
+    print(agg_summary_df.tail(5)[['Classifier', 'Average_Q_Statistic']])
 
 
 
