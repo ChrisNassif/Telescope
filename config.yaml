@@ -1,0 +1,113 @@
+# Lookup table to map model codenames to model displaynames
+# You may want to change this if you would like to introduce new models
+model_codenames_to_model_displaynames: {
+  gemma2_9B: "Gemma2 9B",
+  gemma2_2B: "Gemma2 2B",
+  falcon_7B: "Falcon 7B",
+  llama3_8B: "Llama3 8B",
+  smollm_135M: "SmolLM 135M",
+  smollm2_135M: "SmolLM2 135M",
+  smollm_360M: "SmolLM 360M",
+  smollm2_360M: "SmolLM2 360M",
+  smollm_1_7B: "SmolLM 1.7B",
+  smollm2_1_7B: "SmolLM2 1.7B",
+  gpt_neo_2_7B: "GPT Neo 2.7B",
+  gpt_j_6B: "GPTJ 6B"
+}
+
+
+# Lookup table to map dataset codenames to dataset displaynames
+# You may want to change this if you would like to introduce new datasets
+dataset_codenames_to_dataset_displaynames: {
+  detect_llm_text: "Detect LLM Text",
+  ai_human: "AI vs Human",
+  hc3: "HC3",
+  hc3_plus: "HC3 Plus",
+  esl_gpt4o: "ESL GPT4o Mini",
+
+
+  m4_multilingual: "M4 Multilingual",
+  m4_arabic_chatgpt: "M4 Arabic ChatGPT",
+  m4_chinese_chatgpt: "M4 Chinese ChatGPT",
+  m4_english_wikipedia_chatgpt: "M4 English Wikipedia ChatGPT",
+  m4_russian_chatgpt: "M4 Russian ChatGPT",
+  m4_urdu_chatgpt: "M4 Urdu ChatGPT",
+
+  
+  ghostbusters_essay_gpt: "GB Essay ChatGPT",
+  ghostbusters_news_gpt: "GB News ChatGPT",
+  ghostbusters_creative_gpt: "GB Creative ChatGPT",
+  ghostbusters_essay_gpt4o: "GB Essay GPT4o",
+  ghostbusters_creative_gpt4o: "GB Creative GPT4o",
+  ghostbusters_news_claude: "GB News Claude",
+  ghostbusters_creative_claude: "GB Creative Claude",
+  ghostbusters_essay_claude: "GB Essay Claude",
+  ghostbusters_essay_deepseek: "GB Essay Deepseek V3",
+  ghostbusters_creative_deepseek: "GB Creative Deepseek V3",
+  ghostbusters_creative_gpt4o_adversarial_prompt: "GB Creative GPT4o Adversarial Prompt",
+  ghostbusters_essay_gpt4o_adversarial_prompt: "GB Essay GPT4o Adversarial Prompt",
+  ghostbusters_essay_gpt4o_adversarial_prompt2: "GB Essay GPT4o Adversarial Prompt 2",
+  ghostbusters_essay_gpt4o_low_temperature: "GB Essay GPT4o Low Temperature",
+  ghostbusters_essay_gpt4o_high_temperature: "GB Essay GPT4o High Temperature",
+
+  ghostbusters_perturb_char_basic_50: "GB Spelling Error Perturbation",
+  ghostbusters_perturb_char_cap_50: "GB Character Capitalization Perturbation",
+  ghostbusters_perturb_char_space_50: "GB Space Insertion Perturbation",
+  ghostbusters_perturb_para_adj_5: "GB Swap Adjacent Paragraphs Perturbation",
+  ghostbusters_perturb_para_paraph_5: "GB Paraphrase Paragraphs Perturbation",
+  ghostbusters_perturb_sent_adj_5: "GB Swap Adjacent Sentences Perturbation",
+  ghostbusters_perturb_sent_paraph_5: "GB Paraphrase Sentences Perturbation",
+  ghostbusters_perturb_word_adj_50: "GB Swap Adjacent Words Perturbation",
+  ghostbusters_perturb_word_syn_50: "GB Swap Word with Synonyms Perturbation",
+
+  ghostbusters_creative_gpt4o_high_temperature: "GB Creative GPT4o High Temperature",
+  ghostbusters_creative_gpt4o_low_temperature: "GB Creative GPT4o Low Temperature",
+}
+
+
+# Lookup table to map metric codenames to metric displaynames
+# You may want to change this if you would like to introduce new metrics
+metric_codenames_to_metric_displaynames: {
+  telescope_perplexity: "Telescope Perplexity",
+  perplexity: "Perplexity",
+  binoculars_score: "Binoculars Score",
+  log_rank_ratio: "DetectLLM LRR",
+  fast_detectgpt: "Fast-DetectGPT",
+
+  telescope_perplexity_divided_by_cross_perplexity: "Telescope Perplexity Divided by Cross Perplexity",
+  cross_perplexity: "Cross Perplexity",
+  log_likelihood: "Log Likelihood",
+  kl_divergence: "KL Divergence",
+  entropy_ratio: "Entropy Ratio",
+  observer_model_distribution_overlap: "Observer Model Distribution Overlap",
+  performer_model_distribution_overlap: "Performer Model Distribution Overlap",
+  observer_model_total_variation_distance: "Observer Model Total Variation Distance",
+  performer_model_total_variation_distance: "Performer Model Total Variation Distance",
+  observer_model_entropy: "Observer Model Entropy",
+  performer_model_entropy: "Performer Model Entropy",
+  observer_model_logits_standard_deviation: "Observer Model Logits Standard Deviation",
+  performer_model_logits_standard_deviation: "Performer Model Logits Standard Deviation",
+  log_rank: "Log Rank",
+}
+
+
+# these are the colors to be used for each of the plots and the goal is to pick these colors 
+# to be as distinct from each other as possible. Scripts in this codebase will pick from these colors by
+# picking color #1 first, then color #2 etc whenever it needs a distinct color for a plot
+"plot_colors": [
+  "#1f77b4",  # Blue
+  "#ff7f0e",  # Orange
+  "#2ca02c",  # Green
+  "#d62728",  # Red
+  "#9467bd",  # Purple
+  "#8c564b",  # Brown
+  "#e377c2",  # Pink
+  "#7f7f7f",  # Gray
+  "#bcbd22",  # Olive
+  "#17becf",  # Cyan
+  "#f5a623",  # Amber
+  "#a6cee3",  # Light Blue
+  "#b15928",  # Dark Brown
+  "#6a3d9a",  # Dark Purple
+  "#ffcc00",  # Bright Yellow
+]

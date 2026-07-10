@@ -1,0 +1,9 @@
+{
+    "observer_model_name": "HuggingFaceTB/SmolLM-135M",
+    "performer_model_name": "HuggingFaceTB/SmolLM-135M",
+    "log_interval": 100,
+    "save_interval": 500,
+    "tensorboard": false,
+    "device": "cuda",
+    "created_at": "2025-02-03T16:08:02.455362"
+}
