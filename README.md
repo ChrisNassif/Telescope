@@ -1,7 +1,7 @@
 # Telescope: Improving Zero-Shot Detection of LLM-Generated Content With Token Repetition
 
 <p align="center">
-    <b>A novel approach to detecting AI-generated text through token repetition analysis</b>
+    <b>A novel approach to detecting AI-generated text through token repetition analysis [Accepted ICML 2026]</b>
 </p>
 
 <p align="center">
