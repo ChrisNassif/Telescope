@@ -3,6 +3,7 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import sys
 sys.path.insert(0, os.getcwd())
 
+from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -13,58 +14,59 @@ import yaml
 
 from llm_text_detectors.utils import calculate_optimal_bin_count
 
-PLOT_COLORS = yaml.safe_load(open("config.yaml"))["plot_colors"]
+PLOT_COLORS: List[str] = yaml.safe_load(open("config.yaml"))["plot_colors"]
 
 
 ### START GLOBALS -------------------------------------------------------------------------
 
-EXPERIMENT_FOLDER_NAME = "experiment_results"
-ANALYSIS_OUTPUT_FOLDER_NAME = "experiment_analyses"
-ANALYSIS_NAME = "threshold_transfer"
+EXPERIMENT_FOLDER_NAME: str = "experiment_results"
+ANALYSIS_OUTPUT_FOLDER_NAME: str = "experiment_analyses"
+ANALYSIS_NAME: str = "threshold_transfer"
 
 
-SOURCE_DATASET_CODENAME = "ghostbusters_essay_gpt4o"
-TARGET_DATASET_CODENAME = "ghostbusters_essay_claude"
+SOURCE_DATASET_CODENAME: str = "ghostbusters_essay_gpt4o"
+TARGET_DATASET_CODENAME: str = "ghostbusters_essay_claude"
 
-MODEL_CODENAME_TO_TEST = "falcon_7B"
-METRIC_CODENAMES_TO_TEST = ["telescope_perplexity", "binoculars_score"]
+MODEL_CODENAME_TO_TEST: str = "falcon_7B"
+METRIC_CODENAMES_TO_TEST: List[str] = ["telescope_perplexity", "binoculars_score"]
 
 ### END GLOBALS -------------------------------------------------------------------------
 
 
 
 
-def load_data(model_codename, dataset_codename):
+def load_data(model_codename: str, dataset_codename: str) -> pd.DataFrame:
     """Load data from a specific model and dataset combination."""
-    file_path = f"{EXPERIMENT_FOLDER_NAME}/{model_codename}_{dataset_codename}_dataset/raw_data.csv"
-    df = pd.read_csv(file_path)
+    file_path: str = f"{EXPERIMENT_FOLDER_NAME}/{model_codename}_{dataset_codename}_dataset/raw_data.csv"
+    df: pd.DataFrame = pd.read_csv(file_path)
     df['dataset'] = dataset_codename
     return df
 
 
-def find_optimal_threshold(data, metric_codename):
+def find_optimal_threshold(data: pd.DataFrame, metric_codename: str) -> Tuple[float, float]:
     """Find optimal threshold that maximizes accuracy on the source dataset."""
     # Get values and true labels
-    values = data[metric_codename].values
-    labels = data['y_labels'].values
+    values: np.ndarray = data[metric_codename].values
+    labels: np.ndarray = data['y_labels'].values
     
     # Try different thresholds and find the one with best accuracy
-    thresholds = np.sort(values)
-    best_accuracy = 0
-    best_threshold = 0
+    thresholds: np.ndarray = np.sort(values)
+    best_accuracy: float = 0.0
+    best_threshold: float = 0.0
     
+    threshold: float
     for threshold in thresholds:
         # Predict AI if metric value is below threshold (assuming lower values indicate AI)
         # This may need to be reversed depending on your specific metrics
-        predictions = (values < threshold).astype(int)
+        predictions: np.ndarray = (values < threshold).astype(int)
         
         # Calculate accuracy
-        accuracy = (predictions == labels).mean()
+        accuracy: float = float((predictions == labels).mean())
         
         # If this approach gives consistently poor results, we might be using the wrong direction
         if accuracy < 0.5:
             predictions = (values >= threshold).astype(int)
-            accuracy = (predictions == labels).mean()
+            accuracy = float((predictions == labels).mean())
         
         if accuracy > best_accuracy:
             best_accuracy = accuracy
@@ -76,52 +78,63 @@ def find_optimal_threshold(data, metric_codename):
 
 
 def create_threshold_transfer_plot(
-        source_data, target_data, metric_codename, model_codename, 
-        source_dataset_codename, target_dataset_codename, output_path
-    ):
+    source_data: pd.DataFrame,
+    target_data: pd.DataFrame,
+    metric_codename: str,
+    model_codename: str, 
+    source_dataset_codename: str,
+    target_dataset_codename: str,
+    output_path: str
+) -> Dict[str, float]:
     
     """Create and save a histogram plot with transferred threshold."""
     plt.figure(figsize=(14, 8))
     
     # Get target dataset data for each class
-    target_human_data = target_data[target_data['y_labels'] == 0][metric_codename]
-    target_ai_data = target_data[target_data['y_labels'] == 1][metric_codename]
+    target_human_data: pd.Series = target_data[target_data['y_labels'] == 0][metric_codename]
+    target_ai_data: pd.Series = target_data[target_data['y_labels'] == 1][metric_codename]
     
     # Calculate optimal bins for target data
-    target_all_data = target_data[metric_codename]
-    n_bins = calculate_optimal_bin_count(target_all_data)
+    target_all_data: pd.Series = target_data[metric_codename]
+    n_bins: int = calculate_optimal_bin_count(target_all_data)
     
     # Create histograms for target dataset
     plt.hist(target_human_data, bins=n_bins, alpha=0.5, label=f'Target Human (n={len(target_human_data)})', color=PLOT_COLORS[0], density=True)
     plt.hist(target_ai_data, bins=n_bins, alpha=0.5, label=f'Target AI (n={len(target_ai_data)})', color=PLOT_COLORS[3], density=True)
     
     # Find optimal threshold on source dataset
+    source_threshold: float
+    source_accuracy: float
     source_threshold, source_accuracy = find_optimal_threshold(source_data, metric_codename)
     
     # Calculate performance on target dataset using source threshold
-    target_values = target_data[metric_codename].values
-    target_labels = target_data['y_labels'].values
+    target_values: np.ndarray = target_data[metric_codename].values
+    target_labels: np.ndarray = target_data['y_labels'].values
     
     # Predict using the source threshold
     # Adjust the comparison based on your metric (< or > threshold)
-    predictions = (target_values < source_threshold).astype(int)
+    predictions: np.ndarray = (target_values < source_threshold).astype(int)
     
     # If accuracy is less than 0.5, we might need to flip the prediction direction
-    target_accuracy = (predictions == target_labels).mean()
+    target_accuracy: float = float((predictions == target_labels).mean())
     if target_accuracy < 0.5:
         predictions = (target_values >= source_threshold).astype(int)
-        target_accuracy = (predictions == target_labels).mean()
+        target_accuracy = float((predictions == target_labels).mean())
     
     # Calculate confusion matrix for additional metrics
+    tn: int
+    fp: int
+    fn: int
+    tp: int
     tn, fp, fn, tp = confusion_matrix(target_labels, predictions).ravel()
-    sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0  # True Positive Rate
-    specificity = tn / (tn + fp) if (tn + fp) > 0 else 0  # True Negative Rate
+    sensitivity: float = tp / (tp + fn) if (tp + fn) > 0 else 0.0  # True Positive Rate
+    specificity: float = tn / (tn + fp) if (tn + fp) > 0 else 0.0  # True Negative Rate
     
     # Draw the threshold line
     plt.axvline(source_threshold, color=PLOT_COLORS[4], linestyle='-', linewidth=2, label=f'Source Threshold: {source_threshold:.3f}')
     
     # Add title and labels
-    title = (
+    title: str = (
         f'Distribution of {metric_codename} for {model_codename}\n' 
         f'Source: {source_dataset_codename} (Acc: {source_accuracy:.3f}) → ' 
         f'Target: {target_dataset_codename} (Acc: {target_accuracy:.3f})'
@@ -161,9 +174,11 @@ def create_threshold_transfer_plot(
 
 
 
-def main():
+def main() -> None:
     os.makedirs(f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}", exist_ok=True)
     
+    source_data: pd.DataFrame
+    target_data: pd.DataFrame
     try:
         source_data = load_data(MODEL_CODENAME_TO_TEST, SOURCE_DATASET_CODENAME)
         target_data = load_data(MODEL_CODENAME_TO_TEST, TARGET_DATASET_CODENAME)
@@ -176,19 +191,20 @@ def main():
         return
 
 
+    metric_codename: str
     for metric_codename in METRIC_CODENAMES_TO_TEST:
 
-        output_path = (
+        output_path: str = (
             f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{MODEL_CODENAME_TO_TEST}_"
             f"{metric_codename}_{SOURCE_DATASET_CODENAME}_to_{TARGET_DATASET_CODENAME}.png"
         )
         
-        results = create_threshold_transfer_plot(
+        results: Dict[str, float] = create_threshold_transfer_plot(
             source_data, target_data, metric_codename, MODEL_CODENAME_TO_TEST,
             SOURCE_DATASET_CODENAME, TARGET_DATASET_CODENAME, output_path
         )
         
-        stats_path = (
+        stats_path: str = (
             f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/"
             f"{MODEL_CODENAME_TO_TEST}_{metric_codename}_{SOURCE_DATASET_CODENAME}_to_{TARGET_DATASET_CODENAME}_stats.txt"
         )

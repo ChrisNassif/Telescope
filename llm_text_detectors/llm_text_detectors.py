@@ -1,32 +1,37 @@
 import gc
 import time
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Dict, Any, Optional
 
 import numpy as np
 import torch
 import transformers
-from transformers import AutoModelForCausalLM, BatchEncoding, PreTrainedTokenizer
+from transformers import AutoModelForCausalLM, BatchEncoding, PreTrainedTokenizer, PreTrainedModel
 
 from .utils import load_model_and_tokenizer, get_hugging_face_auth_token
 
-cross_entropy_loss_function = torch.nn.CrossEntropyLoss(reduction="none")
-softmax_function = torch.nn.Softmax(dim=-1)
+cross_entropy_loss_function: torch.nn.CrossEntropyLoss = torch.nn.CrossEntropyLoss(reduction="none")
+softmax_function: torch.nn.Softmax = torch.nn.Softmax(dim=-1)
 
 
 class Detectors:
+    performer_model: PreTrainedModel
+    performer_tokenizer: PreTrainedTokenizer
+    observer_model: PreTrainedModel
+    observer_tokenizer: PreTrainedTokenizer
+    device: Union[str, torch.device]
 
     def __init__(
             self, 
             performer_model_huggingface_name: str, 
-            observer_model_huggingface_name: str = None, 
-            bits_and_bytes_quantization_config = None, 
-            device=None
-        ):
+            observer_model_huggingface_name: Optional[str] = None, 
+            bits_and_bytes_quantization_config: Optional[Any] = None, 
+            device: Optional[Union[str, torch.device]] = None
+        ) -> None:
 
-        if device == None:
+        if device is None:
             device = "cuda:0" if torch.cuda.is_available() else "cpu"
         
-        hugging_face_auth_token = get_hugging_face_auth_token()
+        hugging_face_auth_token: str = get_hugging_face_auth_token()
         
         self.performer_model, self.performer_tokenizer = load_model_and_tokenizer(
             performer_model_huggingface_name, hugging_face_auth_token, bits_and_bytes_quantization_config, device
@@ -46,65 +51,80 @@ class Detectors:
         self.observer_model.eval()
 
 
-    def compute_telescope_perplexity(self, text: Union[str, List[str]], device: torch.device = None) -> float:
+    def compute_telescope_perplexity(self, text: Union[str, List[str]], device: Optional[Union[str, torch.device]] = None) -> float:
         """
         Returns:
             float: The telescope perplexity of the given text.
         """
         if device is None:
             device = self.device
+        performer_model_logits: torch.Tensor
+        observer_model_logits: torch.Tensor
+        text_encodings: BatchEncoding
         performer_model_logits, observer_model_logits, text_encodings = self._compute_logits(text, self.performer_model, self.observer_model, self.performer_tokenizer, device=device)
         performer_model_logits = performer_model_logits.to(torch.float32)
         return self._compute_telescope_perplexity(text_encodings, performer_model_logits)
 
-    def compute_perplexity(self, text: Union[str, List[str]], device: torch.device = None) -> float:
+    def compute_perplexity(self, text: Union[str, List[str]], device: Optional[Union[str, torch.device]] = None) -> float:
         """
         Returns:
             float: The perplexity of the given text.
         """
         if device is None:
             device = self.device
+        performer_model_logits: torch.Tensor
+        observer_model_logits: torch.Tensor
+        text_encodings: BatchEncoding
         performer_model_logits, observer_model_logits, text_encodings = self._compute_logits(text, self.performer_model, self.observer_model, self.performer_tokenizer, device=device)
         performer_model_logits = performer_model_logits.to(torch.float32)        
         return self._compute_perplexity(text_encodings, performer_model_logits)
 
 
-    def compute_binoculars_score(self, text: Union[str, List[str]], device: torch.device = None) -> float:
+    def compute_binoculars_score(self, text: Union[str, List[str]], device: Optional[Union[str, torch.device]] = None) -> float:
         """
         Returns:
             float: The binoculars score of the given text.
         """
         if device is None:
             device = self.device
+        performer_model_logits: torch.Tensor
+        observer_model_logits: torch.Tensor
+        text_encodings: BatchEncoding
         performer_model_logits, observer_model_logits, text_encodings = self._compute_logits(text, self.performer_model, self.observer_model, self.performer_tokenizer, device=device)
         
         performer_model_logits = performer_model_logits.to(torch.float32)
         observer_model_logits = observer_model_logits.to(torch.float32)
 
-        causal_perplexity = self._compute_perplexity(text_encodings, performer_model_logits)
-        cross_perplexity = self._compute_cross_perplexity(text_encodings, observer_model_logits, performer_model_logits, self.performer_tokenizer.pad_token_id)
+        causal_perplexity: float = self._compute_perplexity(text_encodings, performer_model_logits)
+        cross_perplexity: float = self._compute_cross_perplexity(text_encodings, observer_model_logits, performer_model_logits, self.performer_tokenizer.pad_token_id)
 
         return float(causal_perplexity) / float(cross_perplexity)
 
-    def compute_detectllm_log_rank_ratio(self, text: Union[str, List[str]], device: torch.device = None) -> float:
+    def compute_detectllm_log_rank_ratio(self, text: Union[str, List[str]], device: Optional[Union[str, torch.device]] = None) -> float:
         """
         Returns:
             float: The log rank ratio of the given text.
         """
         if device is None:
             device = self.device
+        performer_model_logits: torch.Tensor
+        observer_model_logits: torch.Tensor
+        text_encodings: BatchEncoding
         performer_model_logits, observer_model_logits, text_encodings = self._compute_logits(text, self.performer_model, self.observer_model, self.performer_tokenizer, device=device)
         performer_model_logits = performer_model_logits.to(torch.float32)
         return self._compute_log_rank_ratio(text_encodings, performer_model_logits)
 
 
-    def compute_fast_detectgpt(self, text: Union[str, List[str]], device: torch.device = None) -> float:
+    def compute_fast_detectgpt(self, text: Union[str, List[str]], device: Optional[Union[str, torch.device]] = None) -> float:
         """
         Returns:
             float: The Fast DetectGPT score of the given text.
         """
         if device is None:
             device = self.device
+        performer_model_logits: torch.Tensor
+        observer_model_logits: torch.Tensor
+        text_encodings: BatchEncoding
         performer_model_logits, observer_model_logits, text_encodings = self._compute_logits(text, self.performer_model, self.observer_model, self.performer_tokenizer, device=device)
         observer_model_logits = observer_model_logits.to(torch.float32)
 
@@ -112,8 +132,7 @@ class Detectors:
         
 
 
-
-    def compute_all_metrics(self, text: Union[str, List[str]], device: torch.device = None):
+    def compute_all_metrics(self, text: Union[str, List[str]], device: Optional[Union[str, torch.device]] = None) -> Dict[str, Any]:
         """
         Computes various metrics from performer and observer model logits.
 
@@ -123,8 +142,11 @@ class Detectors:
         """
         if device is None:
             device = self.device
+        performer_model_logits: torch.Tensor
+        observer_model_logits: torch.Tensor
+        text_encodings: BatchEncoding
         performer_model_logits, observer_model_logits, text_encodings = self._compute_logits(text, self.performer_model, self.observer_model, self.performer_tokenizer, device=device)
-        metrics_dict = self._compute_metrics_from_logits(text_encodings, performer_model_logits, observer_model_logits, device=device)
+        metrics_dict: Dict[str, Any] = self._compute_metrics_from_logits(text_encodings, performer_model_logits, observer_model_logits, device=device)
         return metrics_dict
 
 
@@ -132,12 +154,12 @@ class Detectors:
     @torch.inference_mode()
     def _compute_logits(
             self,
-            text: str,
-            performer_model: AutoModelForCausalLM,
-            observer_model: AutoModelForCausalLM,
+            text: Union[str, List[str]],
+            performer_model: PreTrainedModel,
+            observer_model: PreTrainedModel,
             tokenizer: PreTrainedTokenizer,
-            device: torch.device = "cuda:0"
-        ):
+            device: Union[str, torch.device] = "cuda:0"
+        ) -> Tuple[torch.Tensor, torch.Tensor, BatchEncoding]:
         """
         Produces the performer logits, observer logits and text encodings for a given performer model
         """
@@ -148,17 +170,19 @@ class Detectors:
             torch.cuda.reset_peak_memory_stats()
 
         # Cap the model's max length at a fallback limit
-        safe_max_length = min(tokenizer.model_max_length, 10_000)
+        safe_max_length: int = min(tokenizer.model_max_length, 10_000)
 
-        text_encodings = tokenizer(text, return_tensors="pt", truncation=True, max_length=safe_max_length).to(device)
+        text_encodings: BatchEncoding = tokenizer(text, return_tensors="pt", truncation=True, max_length=safe_max_length).to(device)
         
-        performer_model_logits = performer_model(**text_encodings).logits.squeeze(0)
+        performer_model_logits: torch.Tensor = performer_model(**text_encodings).logits.squeeze(0)
 
+        observer_model_logits: torch.Tensor
         if performer_model != observer_model:
             observer_model_logits = observer_model(**text_encodings).logits.squeeze(0)
         else:
             observer_model_logits = performer_model_logits
 
+        key: str
         for key in list(text_encodings.keys()):
             text_encodings[key] = text_encodings[key].squeeze(0)
 
@@ -172,8 +196,8 @@ class Detectors:
             text_encodings: BatchEncoding,
             performer_model_logits: torch.Tensor,
             observer_model_logits: torch.Tensor,
-            device="cuda:0"
-        ) -> dict[str, float]:
+            device: Union[str, torch.device] = "cuda:0"
+        ) -> Dict[str, Any]:
         """
         Computes various metrics from performer and observer model logits.
         We designed this to be easy to add and remove different metrics 
@@ -184,62 +208,62 @@ class Detectors:
         """
 
         text_input_ids: torch.Tensor = text_encodings["input_ids"]
-        attention_mask = text_encodings["attention_mask"]
+        attention_mask: torch.Tensor = text_encodings["attention_mask"]
 
         performer_model_logits = performer_model_logits.to(torch.float32)
         observer_model_logits = observer_model_logits.to(torch.float32)
 
 
         # Logits are converted to probabilities via softmax
-        performer_model_probabilities = torch.softmax(performer_model_logits, dim=-1, dtype=torch.float16)
-        observer_model_probabilities = torch.softmax(observer_model_logits, dim=-1, dtype=torch.float16)
+        performer_model_probabilities: torch.Tensor = torch.softmax(performer_model_logits, dim=-1, dtype=torch.float16)
+        observer_model_probabilities: torch.Tensor = torch.softmax(observer_model_logits, dim=-1, dtype=torch.float16)
 
 
         # Calculate telescope perplexity (Telescope)
-        telescope_perplexity = self._compute_telescope_perplexity(text_encodings, performer_model_logits)        
+        telescope_perplexity: float = self._compute_telescope_perplexity(text_encodings, performer_model_logits)        
 
         # Normal Perplexity and Cross Perplexity (Binoculars)
-        causal_perplexity = self._compute_perplexity(text_encodings, performer_model_logits)
-        cross_perplexity = self._compute_cross_perplexity(text_encodings, observer_model_logits, performer_model_logits, self.performer_tokenizer.pad_token_id)
+        causal_perplexity: float = self._compute_perplexity(text_encodings, performer_model_logits)
+        cross_perplexity: float = self._compute_cross_perplexity(text_encodings, observer_model_logits, performer_model_logits, self.performer_tokenizer.pad_token_id)
 
         # DetectLLM Log Rank Ratio
-        log_rank_ratio = self._compute_log_rank_ratio(text_encodings, performer_model_logits)
+        log_rank_ratio: float = self._compute_log_rank_ratio(text_encodings, performer_model_logits)
 
         # Fast-DetectGPT 
-        fast_detectgpt_score = self._compute_fast_detectgpt(text_encodings, observer_model_logits, observer_model_logits)
+        fast_detectgpt_score: float = self._compute_fast_detectgpt(text_encodings, observer_model_logits, observer_model_logits)
 
 
 
         # Calculate entropy
-        performer_model_entropy = -torch.sum(performer_model_probabilities * torch.log2(performer_model_probabilities + 1e-10)) / text_input_ids.size(0)
-        observer_model_entropy = -torch.sum(observer_model_probabilities * torch.log2(observer_model_probabilities + 1e-10)) / text_input_ids.size(0)
+        performer_model_entropy: torch.Tensor = -torch.sum(performer_model_probabilities * torch.log2(performer_model_probabilities + 1e-10)) / text_input_ids.size(0)
+        observer_model_entropy: torch.Tensor = -torch.sum(observer_model_probabilities * torch.log2(observer_model_probabilities + 1e-10)) / text_input_ids.size(0)
 
         # Log-Likelihood and Log-Rank
-        log_likelihood = self._compute_log_likelihood(text_encodings, performer_model_logits)
-        log_rank = self._compute_log_rank(text_encodings, performer_model_logits)
+        log_likelihood: float = self._compute_log_likelihood(text_encodings, performer_model_logits)
+        log_rank: float = self._compute_log_rank(text_encodings, performer_model_logits)
 
         # Per Token Metrics
-        per_token_telescope_perplexity = self._compute_telescope_perplexity_per_token(text_encodings, performer_model_logits)
-        per_token_perplexity = self._compute_perplexity_per_token(text_encodings, performer_model_logits)
-        per_token_cross_perplexity = self._compute_cross_perplexity_per_token(text_encodings, performer_model_logits, observer_model_logits, self.performer_tokenizer.pad_token_id)
+        per_token_telescope_perplexity: List[float] = self._compute_telescope_perplexity_per_token(text_encodings, performer_model_logits)
+        per_token_perplexity: List[float] = self._compute_perplexity_per_token(text_encodings, performer_model_logits)
+        per_token_cross_perplexity: List[float] = self._compute_cross_perplexity_per_token(text_encodings, performer_model_logits, observer_model_logits, self.performer_tokenizer.pad_token_id)
 
         # Calculate KL divergence
-        kl_div = torch.sum(performer_model_probabilities * (torch.log2(performer_model_probabilities + 1e-10) - torch.log2(observer_model_probabilities + 1e-10))) / text_input_ids.size(0)
+        kl_div: torch.Tensor = torch.sum(performer_model_probabilities * (torch.log2(performer_model_probabilities + 1e-10) - torch.log2(observer_model_probabilities + 1e-10))) / text_input_ids.size(0)
 
         # Entropy Ratio
-        entropy_ratio = performer_model_entropy.item() / (observer_model_entropy.item() + 1e-10)
+        entropy_ratio: float = performer_model_entropy.item() / (observer_model_entropy.item() + 1e-10)
 
         # Distribution Shift
-        performer_total_variation_distance = self._compute_total_variation_distance(text_encodings, performer_model_logits)
-        observer_total_variation_distance = self._compute_total_variation_distance(text_encodings, observer_model_logits)
+        performer_total_variation_distance: float = self._compute_total_variation_distance(text_encodings, performer_model_logits)
+        observer_total_variation_distance: float = self._compute_total_variation_distance(text_encodings, observer_model_logits)
 
         # Distribution Overlap
-        performer_distribution_overlap = self._compute_distribution_overlap(text_encodings, performer_model_logits)
-        observer_distribution_overlap = self._compute_distribution_overlap(text_encodings, observer_model_logits)
+        performer_distribution_overlap: float = self._compute_distribution_overlap(text_encodings, performer_model_logits)
+        observer_distribution_overlap: float = self._compute_distribution_overlap(text_encodings, observer_model_logits)
 
         # Logits Standard Deviation
-        performer_model_logits_standard_deviation = self._compute_logits_standard_deviation(text_encodings, performer_model_logits)
-        observer_model_logits_standard_deviation = self._compute_logits_standard_deviation(text_encodings, observer_model_logits)
+        performer_model_logits_standard_deviation: float = self._compute_logits_standard_deviation(text_encodings, performer_model_logits)
+        observer_model_logits_standard_deviation: float = self._compute_logits_standard_deviation(text_encodings, observer_model_logits)
 
 
 
@@ -287,7 +311,6 @@ class Detectors:
 
 
 
-
     
     # --------------------------------------------------------------------------------------
     # Here are all of the implementations for the metrics tested in this paper (and some extra)!
@@ -298,7 +321,7 @@ class Detectors:
     
     def _compute_telescope_perplexity(
             self,
-            text_encoding: transformers.BatchEncoding,
+            text_encoding: BatchEncoding,
             logits: torch.Tensor,
             median: bool = False,
             temperature: float = 1.0
@@ -307,7 +330,7 @@ class Detectors:
         Computes Telescope perplexity on a single sample.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings containing input_ids and attention_mask.
+            text_encoding (BatchEncoding): Squeezed text encodings containing input_ids and attention_mask.
             logits (torch.Tensor): Squeezed logits from the performer model of shape [sequence_length, vocab_size].
             median (bool, optional): Whether to use the median instead of the mean loss. Defaults to False.
             temperature (float, optional): Logit scaling factor. Defaults to 1.0.
@@ -316,14 +339,15 @@ class Detectors:
             float: The computed Telescope perplexity score.
         """
 
-        shifted_logits = logits[:-1, :].contiguous() / temperature
-        shifted_labels = text_encoding.input_ids[:-1].contiguous()
-        shifted_attention_mask = text_encoding.attention_mask[:-1].contiguous()
+        shifted_logits: torch.Tensor = logits[:-1, :].contiguous() / temperature
+        shifted_labels: torch.Tensor = text_encoding.input_ids[:-1].contiguous()
+        shifted_attention_mask: torch.Tensor = text_encoding.attention_mask[:-1].contiguous()
 
-        cross_entropy_losses = cross_entropy_loss_function(shifted_logits, shifted_labels)
+        cross_entropy_losses: torch.Tensor = cross_entropy_loss_function(shifted_logits, shifted_labels)
 
+        telescope_perplexity: torch.Tensor
         if median:
-            valid_cross_entropy = cross_entropy_losses[shifted_attention_mask.bool()]
+            valid_cross_entropy: torch.Tensor = cross_entropy_losses[shifted_attention_mask.bool()]
             telescope_perplexity = valid_cross_entropy.median()
         else:
             telescope_perplexity = (cross_entropy_losses * shifted_attention_mask).sum() / shifted_attention_mask.sum()
@@ -333,7 +357,7 @@ class Detectors:
 
     def _compute_perplexity(
             self,
-            text_encoding: transformers.BatchEncoding,
+            text_encoding: BatchEncoding,
             logits: torch.Tensor,
             median: bool = False,
             temperature: float = 1.0
@@ -342,7 +366,7 @@ class Detectors:
         Computes standard perplexity on a single sample.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings containing input_ids and attention_mask.
+            text_encoding (BatchEncoding): Squeezed text encodings containing input_ids and attention_mask.
             logits (torch.Tensor): Squeezed logits from the performer model of shape [sequence_length, vocab_size].
             median (bool, optional): Whether to use the median instead of the mean loss. Defaults to False.
             temperature (float, optional): Logit scaling factor. Defaults to 1.0.
@@ -355,14 +379,15 @@ class Detectors:
         # https://arxiv.org/pdf/2401.12070
         # Copyright (c) 2023, Abhimanyu Hans, Avi Schwarzschild, Tom Goldstein
 
-        shifted_logits = logits[:-1, :].contiguous() / temperature
-        shifted_labels = text_encoding.input_ids[1:].contiguous()
-        shifted_attention_mask = text_encoding.attention_mask[1:].contiguous()
+        shifted_logits: torch.Tensor = logits[:-1, :].contiguous() / temperature
+        shifted_labels: torch.Tensor = text_encoding.input_ids[1:].contiguous()
+        shifted_attention_mask: torch.Tensor = text_encoding.attention_mask[1:].contiguous()
 
-        cross_entropy_losses = cross_entropy_loss_function(shifted_logits, shifted_labels)
+        cross_entropy_losses: torch.Tensor = cross_entropy_loss_function(shifted_logits, shifted_labels)
 
+        perplexity: torch.Tensor
         if median:
-            valid_cross_entropy = cross_entropy_losses[shifted_attention_mask.bool()]
+            valid_cross_entropy: torch.Tensor = cross_entropy_losses[shifted_attention_mask.bool()]
             perplexity = valid_cross_entropy.median()
         else:
             perplexity = (cross_entropy_losses * shifted_attention_mask).sum() / shifted_attention_mask.sum()
@@ -372,10 +397,10 @@ class Detectors:
 
     def _compute_cross_perplexity(
             self,
-            text_encoding: transformers.BatchEncoding,
+            text_encoding: BatchEncoding,
             p_logits: torch.Tensor,
             q_logits: torch.Tensor,
-            pad_token_id: int,
+            pad_token_id: Optional[int],
             median: bool = False,
             sample_p: bool = False,
             temperature: float = 1.0
@@ -384,7 +409,7 @@ class Detectors:
         Computes cross-perplexity (contrastive perplexity) on a single sample.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings containing input_ids and attention_mask.
+            text_encoding (BatchEncoding): Squeezed text encodings containing input_ids and attention_mask.
             p_logits (torch.Tensor): Squeezed logits from the observer model of shape [sequence_length, vocab_size].
             q_logits (torch.Tensor): Squeezed logits from the performer model of shape [sequence_length, vocab_size].
             pad_token_id (int): Token ID used for padding.
@@ -400,19 +425,22 @@ class Detectors:
         # https://arxiv.org/pdf/2401.12070
         # Copyright (c) 2023, Abhimanyu Hans, Avi Schwarzschild, Tom Goldstein
 
-        vocab_size = p_logits.shape[-1]
+        vocab_size: int = p_logits.shape[-1]
+        p_scores: torch.Tensor
+        q_scores: torch.Tensor
         p_scores, q_scores = p_logits / temperature, q_logits / temperature
 
-        p_proba = softmax_function(p_scores)
+        p_proba: torch.Tensor = softmax_function(p_scores)
 
         if sample_p:
             p_proba = torch.multinomial(p_proba, replacement=True, num_samples=1).view(-1)
 
-        cross_entropy_losses = cross_entropy_loss_function(input=q_scores, target=p_proba)
-        padding_mask = (text_encoding.input_ids != pad_token_id).type(torch.uint8)
+        cross_entropy_losses: torch.Tensor = cross_entropy_loss_function(input=q_scores, target=p_proba)
+        padding_mask: torch.Tensor = (text_encoding.input_ids != pad_token_id).type(torch.uint8)
 
+        aggregated_cross_entropy: torch.Tensor
         if median:
-            valid_cross_entropy = cross_entropy_losses[padding_mask.bool()]
+            valid_cross_entropy: torch.Tensor = cross_entropy_losses[padding_mask.bool()]
             aggregated_cross_entropy = valid_cross_entropy.median()
         else:
             aggregated_cross_entropy = (cross_entropy_losses * padding_mask).sum() / padding_mask.sum()
@@ -420,19 +448,21 @@ class Detectors:
         return float(aggregated_cross_entropy.item())
 
 
-    def _compute_log_rank_ratio(self, text_encoding: transformers.BatchEncoding, logits: torch.Tensor) -> float:
+    def _compute_log_rank_ratio(self, text_encoding: BatchEncoding, logits: torch.Tensor) -> float:
         """
         Computes the DetectLLM Log Rank Ratio.
         
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings.
+            text_encoding (BatchEncoding): Squeezed text encodings.
             logits (torch.Tensor): Squeezed logits of shape [sequence_length, vocab_size].
             
         Returns:
             float: Log rank ratio value.
         """
+        log_probs: torch.Tensor
+        ranks: torch.Tensor
         log_probs, ranks = self._compute_token_probabilities_and_ranks(text_encoding, logits)
-        log_ranks = torch.log(ranks.float())
+        log_ranks: torch.Tensor = torch.log(ranks.float())
 
         # Take absolute ratio as defined in the paper
         return float(abs(log_probs.sum() / (log_ranks.sum() + 1e-6)).item())
@@ -440,7 +470,7 @@ class Detectors:
 
     def _compute_fast_detectgpt(
             self, 
-            text_encoding: transformers.BatchEncoding,
+            text_encoding: BatchEncoding,
             logits_ref: torch.Tensor, 
             logits_score: torch.Tensor
         ) -> float:
@@ -451,7 +481,7 @@ class Detectors:
         For the sampling-based non-analytic version, see _compute_fast_detectgpt_non_analytic_debug.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings.
+            text_encoding (BatchEncoding): Squeezed text encodings.
             logits_ref (torch.Tensor): Squeezed reference model logits of shape [sequence_length, vocab_size].
             logits_score (torch.Tensor): Squeezed scoring model logits of shape [sequence_length, vocab_size].
 
@@ -464,21 +494,21 @@ class Detectors:
 
         # Ensure shapes match
         if logits_ref.size(-1) != logits_score.size(-1):
-            vocab_size = min(logits_ref.size(-1), logits_score.size(-1))
+            vocab_size: int = min(logits_ref.size(-1), logits_score.size(-1))
             logits_ref = logits_ref[:, :vocab_size]
             logits_score = logits_score[:, :vocab_size]
 
-        lprobs_score = torch.log_softmax(logits_score, dim=-1)
-        probs_ref = torch.softmax(logits_ref, dim=-1)
+        lprobs_score: torch.Tensor = torch.log_softmax(logits_score, dim=-1)
+        probs_ref: torch.Tensor = torch.softmax(logits_ref, dim=-1)
 
-        labels = text_encoding.input_ids[1:]
-        labels_expanded = labels.unsqueeze(-1)
-        log_likelihood = lprobs_score.gather(dim=-1, index=labels_expanded).squeeze(-1)
+        labels: torch.Tensor = text_encoding.input_ids[1:]
+        labels_expanded: torch.Tensor = labels.unsqueeze(-1)
+        log_likelihood: torch.Tensor = lprobs_score.gather(dim=-1, index=labels_expanded).squeeze(-1)
 
-        mean_ref = (probs_ref * lprobs_score).sum(dim=-1)
-        var_ref = (probs_ref * torch.square(lprobs_score)).sum(dim=-1) - torch.square(mean_ref)
+        mean_ref: torch.Tensor = (probs_ref * lprobs_score).sum(dim=-1)
+        var_ref: torch.Tensor = (probs_ref * torch.square(lprobs_score)).sum(dim=-1) - torch.square(mean_ref)
 
-        fast_detectgpt = (log_likelihood.sum() - mean_ref.sum()) / var_ref.sum().sqrt()
+        fast_detectgpt: torch.Tensor = (log_likelihood.sum() - mean_ref.sum()) / var_ref.sum().sqrt()
 
         return float(fast_detectgpt.item())
 
@@ -489,62 +519,62 @@ class Detectors:
 
     def _compute_total_variation_distance(
             self, 
-            text_encoding: transformers.BatchEncoding,
+            text_encoding: BatchEncoding,
             logits: torch.Tensor
         ) -> float:
         """
         Compute total variation distance between the model's predictions and actual next tokens.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings.
+            text_encoding (BatchEncoding): Squeezed text encodings.
             logits (torch.Tensor): Squeezed logits of shape [sequence_length, vocab_size].
 
         Returns:
             float: Average total variation distance.
         """
-        probs = torch.softmax(logits, dim=-1)[:-1]
+        probs: torch.Tensor = torch.softmax(logits, dim=-1)[:-1]
 
-        next_tokens = text_encoding.input_ids[1:]
-        actual_probs = torch.zeros_like(probs)
+        next_tokens: torch.Tensor = text_encoding.input_ids[1:]
+        actual_probs: torch.Tensor = torch.zeros_like(probs)
         actual_probs[torch.arange(next_tokens.size(0)), next_tokens] = 1
 
-        abs_diff = torch.abs(probs - actual_probs)
-        token_tv = 0.5 * torch.sum(abs_diff, dim=-1)
+        abs_diff: torch.Tensor = torch.abs(probs - actual_probs)
+        token_tv: torch.Tensor = 0.5 * torch.sum(abs_diff, dim=-1)
 
-        mask = text_encoding.attention_mask[1:]
-        average_total_variation = (token_tv * mask).sum() / mask.sum().float()
+        mask: torch.Tensor = text_encoding.attention_mask[1:]
+        average_total_variation: torch.Tensor = (token_tv * mask).sum() / mask.sum().float()
 
         return float(average_total_variation.item())
 
 
     def _compute_distribution_overlap(
             self, 
-            text_encoding: transformers.BatchEncoding,
+            text_encoding: BatchEncoding,
             logits: torch.Tensor
         ) -> float:
         """
         Compute overlap across all token position distributions simultaneously.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings.
+            text_encoding (BatchEncoding): Squeezed text encodings.
             logits (torch.Tensor): Squeezed logits of shape [sequence_length, vocab_size].
 
         Returns:
             float: Total distribution overlap value.
         """
-        probs = torch.softmax(logits, dim=-1)[:-1]
+        probs: torch.Tensor = torch.softmax(logits, dim=-1)[:-1]
 
-        next_tokens = text_encoding.input_ids[1:]
-        actual_probs = torch.zeros_like(probs)
+        next_tokens: torch.Tensor = text_encoding.input_ids[1:]
+        actual_probs: torch.Tensor = torch.zeros_like(probs)
         actual_probs[torch.arange(next_tokens.size(0)), next_tokens] = 1
 
-        mask = text_encoding.attention_mask[1:].unsqueeze(-1)
+        mask: torch.Tensor = text_encoding.attention_mask[1:].unsqueeze(-1)
         probs = probs * mask
         actual_probs = actual_probs * mask
 
-        overlap = torch.minimum(probs, actual_probs)
-        position_overlap = torch.sum(overlap, dim=-1)
-        total_overlap = position_overlap.sum() / mask.sum().float()
+        overlap: torch.Tensor = torch.minimum(probs, actual_probs)
+        position_overlap: torch.Tensor = torch.sum(overlap, dim=-1)
+        total_overlap: torch.Tensor = position_overlap.sum() / mask.sum().float()
 
         return float(total_overlap.item())
 
@@ -552,36 +582,36 @@ class Detectors:
 
     def _compute_logits_standard_deviation(
             self, 
-            text_encoding: transformers.BatchEncoding,
+            text_encoding: BatchEncoding,
             logits: torch.Tensor
         ) -> float:
         """
         Compute standard deviation of predicted token probability distributions.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings.
+            text_encoding (BatchEncoding): Squeezed text encodings.
             logits (torch.Tensor): Squeezed logits of shape [sequence_length, vocab_size].
 
         Returns:
             float: Logits standard deviation value.
         """
-        probs = torch.softmax(logits, dim=-1)
-        masked_probs = probs * text_encoding.attention_mask.unsqueeze(-1)
-        std = torch.std(masked_probs)
+        probs: torch.Tensor = torch.softmax(logits, dim=-1)
+        masked_probs: torch.Tensor = probs * text_encoding.attention_mask.unsqueeze(-1)
+        std: torch.Tensor = torch.std(masked_probs)
         return float(std.item())
 
 
     
     def _compute_token_probabilities_and_ranks(
             self, 
-            text_encoding: transformers.BatchEncoding, 
+            text_encoding: BatchEncoding, 
             logits: torch.Tensor
         ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes token log probabilities and ranks on GPU.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings.
+            text_encoding (BatchEncoding): Squeezed text encodings.
             logits (torch.Tensor): Squeezed logits of shape [sequence_length, vocab_size].
 
         Returns:
@@ -589,47 +619,51 @@ class Detectors:
                 - log_probs (torch.Tensor): 1D log probability tensor.
                 - ranks (torch.Tensor): 1D rank tensor.
         """
-        probs = torch.softmax(logits, dim=-1)
+        probs: torch.Tensor = torch.softmax(logits, dim=-1)
         
-        target_ids = text_encoding.input_ids[1:-1]
-        eval_probs = probs[:-2, :]
+        target_ids: torch.Tensor = text_encoding.input_ids[1:-1]
+        eval_probs: torch.Tensor = probs[:-2, :]
         
-        token_probs = eval_probs.gather(dim=-1, index=target_ids.unsqueeze(-1)).squeeze(-1)
-        log_probs = torch.log(token_probs.clamp(min=1e-10))
+        token_probs: torch.Tensor = eval_probs.gather(dim=-1, index=target_ids.unsqueeze(-1)).squeeze(-1)
+        log_probs: torch.Tensor = torch.log(token_probs.clamp(min=1e-10))
         
-        ranks = (eval_probs > token_probs.unsqueeze(-1)).sum(dim=-1) + 1
+        ranks: torch.Tensor = (eval_probs > token_probs.unsqueeze(-1)).sum(dim=-1) + 1
         
         return log_probs, ranks
 
 
-    def _compute_log_likelihood(self, text_encoding: transformers.BatchEncoding, logits: torch.Tensor) -> float:
+    def _compute_log_likelihood(self, text_encoding: BatchEncoding, logits: torch.Tensor) -> float:
         """
         Computes average log likelihood of the sequence.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings.
+            text_encoding (BatchEncoding): Squeezed text encodings.
             logits (torch.Tensor): Squeezed logits of shape [sequence_length, vocab_size].
 
         Returns:
             float: Average log likelihood.
         """
-        log_probs, _ = self._compute_token_probabilities_and_ranks(text_encoding, logits)
+        log_probs: torch.Tensor
+        ranks: torch.Tensor
+        log_probs, ranks = self._compute_token_probabilities_and_ranks(text_encoding, logits)
         return float((log_probs.sum() / (log_probs.numel() + 1e-6)).item())
 
 
-    def _compute_log_rank(self, text_encoding: transformers.BatchEncoding, logits: torch.Tensor) -> float:
+    def _compute_log_rank(self, text_encoding: BatchEncoding, logits: torch.Tensor) -> float:
         """
         Computes average log rank of the sequence.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings.
+            text_encoding (BatchEncoding): Squeezed text encodings.
             logits (torch.Tensor): Squeezed logits of shape [sequence_length, vocab_size].
 
         Returns:
             float: Average log rank.
         """
-        _, ranks = self._compute_token_probabilities_and_ranks(text_encoding, logits)
-        log_ranks = torch.log(ranks.float())
+        log_probs: torch.Tensor
+        ranks: torch.Tensor
+        log_probs, ranks = self._compute_token_probabilities_and_ranks(text_encoding, logits)
+        log_ranks: torch.Tensor = torch.log(ranks.float())
         return float((log_ranks.sum() / (log_ranks.numel() + 1e-6)).item())
 
 
@@ -641,92 +675,94 @@ class Detectors:
 
     def _compute_telescope_perplexity_per_token(
             self,
-            text_encodings: transformers.BatchEncoding,
+            text_encodings: BatchEncoding,
             logits: torch.Tensor,
             temperature: float = 1.0
-        ) -> list[float]:
+        ) -> List[float]:
         """
         Computes Telescope perplexity per token.
 
         Args:
-            text_encodings (transformers.BatchEncoding): Squeezed text encodings.
+            text_encodings (BatchEncoding): Squeezed text encodings.
             logits (torch.Tensor): Squeezed logits of shape [sequence_length, vocab_size].
             temperature (float, optional): Logit scaling factor. Defaults to 1.0.
 
         Returns:
-            list[float]: A list of Telescope perplexities for each token.
+            List[float]: A list of Telescope perplexities for each token.
         """
-        shifted_logits = logits[:-1, :].contiguous() / temperature
-        shifted_labels = text_encodings.input_ids[:-1].contiguous()
-        shifted_attention_mask = text_encodings.attention_mask[:-1].contiguous()
+        shifted_logits: torch.Tensor = logits[:-1, :].contiguous() / temperature
+        shifted_labels: torch.Tensor = text_encodings.input_ids[:-1].contiguous()
+        shifted_attention_mask: torch.Tensor = text_encodings.attention_mask[:-1].contiguous()
 
-        token_loss = cross_entropy_loss_function(shifted_logits, shifted_labels)
-        valid_losses = token_loss[shifted_attention_mask.bool()]
+        token_loss: torch.Tensor = cross_entropy_loss_function(shifted_logits, shifted_labels)
+        valid_losses: torch.Tensor = token_loss[shifted_attention_mask.bool()]
         return valid_losses.tolist()
 
 
     def _compute_perplexity_per_token(
             self,
-            text_encodings: transformers.BatchEncoding,
+            text_encodings: BatchEncoding,
             logits: torch.Tensor,
             temperature: float = 1.0
-        ) -> list[float]:
+        ) -> List[float]:
         """
         Computes standard perplexity per token.
 
         Args:
-            text_encodings (transformers.BatchEncoding): Squeezed text encodings.
+            text_encodings (BatchEncoding): Squeezed text encodings.
             logits (torch.Tensor): Squeezed logits of shape [sequence_length, vocab_size].
             temperature (float, optional): Logit scaling factor. Defaults to 1.0.
 
         Returns:
-            list[float]: A list of standard perplexities for each token.
+            List[float]: A list of standard perplexities for each token.
         """
-        shifted_logits = logits[:-1, :].contiguous() / temperature
-        shifted_labels = text_encodings.input_ids[1:].contiguous()
-        shifted_attention_mask = text_encodings.attention_mask[1:].contiguous()
+        shifted_logits: torch.Tensor = logits[:-1, :].contiguous() / temperature
+        shifted_labels: torch.Tensor = text_encodings.input_ids[1:].contiguous()
+        shifted_attention_mask: torch.Tensor = text_encodings.attention_mask[1:].contiguous()
 
-        token_loss = cross_entropy_loss_function(shifted_logits, shifted_labels)
-        valid_losses = token_loss[shifted_attention_mask.bool()]
+        token_loss: torch.Tensor = cross_entropy_loss_function(shifted_logits, shifted_labels)
+        valid_losses: torch.Tensor = token_loss[shifted_attention_mask.bool()]
         return valid_losses.tolist()
 
 
     def _compute_cross_perplexity_per_token(
             self,
-            text_encodings: transformers.BatchEncoding,
+            text_encodings: BatchEncoding,
             performer_model_logits: torch.Tensor,
             observer_model_logits: torch.Tensor,
-            pad_token_id: int,
+            pad_token_id: Optional[int],
             temperature: float = 1.0
-        ) -> list[float]:
+        ) -> List[float]:
         """
         Computes cross perplexity per token.
 
         Args:
-            text_encodings (transformers.BatchEncoding): Squeezed text encodings.
+            text_encodings (BatchEncoding): Squeezed text encodings.
             performer_model_logits (torch.Tensor): Squeezed performer logits of shape [sequence_length, vocab_size].
             observer_model_logits (torch.Tensor): Squeezed observer logits of shape [sequence_length, vocab_size].
             pad_token_id (int): Token ID used for padding.
             temperature (float, optional): Logit scaling factor. Defaults to 1.0.
 
         Returns:
-            list[float]: A list of cross perplexities for each token.
+            List[float]: A list of cross perplexities for each token.
         """
-        vocab_size = observer_model_logits.shape[-1]
+        vocab_size: int = observer_model_logits.shape[-1]
+        p_scores: torch.Tensor
+        q_scores: torch.Tensor
         p_scores, q_scores = observer_model_logits / temperature, performer_model_logits / temperature
 
-        p_proba = softmax_function(p_scores)
-        cross_entropy = cross_entropy_loss_function(input=q_scores, target=p_proba)
+        p_proba: torch.Tensor = softmax_function(p_scores)
+        cross_entropy: torch.Tensor = cross_entropy_loss_function(input=q_scores, target=p_proba)
         
-        padding_mask = (text_encodings.input_ids != pad_token_id)
-        valid_cross_entropy = cross_entropy[padding_mask]
+        padding_mask: torch.Tensor = (text_encodings.input_ids != pad_token_id)
+        valid_cross_entropy: torch.Tensor = cross_entropy[padding_mask]
 
         return valid_cross_entropy.tolist()
 
 
     def _compute_fast_detectgpt_non_analytic_debug(
             self, 
-            text_encoding: transformers.BatchEncoding,
+            text_encoding: BatchEncoding,
             logits_ref: torch.Tensor, 
             logits_score: torch.Tensor
         ) -> float:
@@ -735,7 +771,7 @@ class Detectors:
         This is not used in the production calculation flow.
 
         Args:
-            text_encoding (transformers.BatchEncoding): Squeezed text encodings.
+            text_encoding (BatchEncoding): Squeezed text encodings.
             logits_ref (torch.Tensor): Squeezed reference model logits of shape [sequence_length, vocab_size].
             logits_score (torch.Tensor): Squeezed scoring model logits of shape [sequence_length, vocab_size].
 
@@ -744,29 +780,29 @@ class Detectors:
         """
         # Ensure shapes match
         if logits_ref.size(-1) != logits_score.size(-1):
-            vocab_size = min(logits_ref.size(-1), logits_score.size(-1))
+            vocab_size: int = min(logits_ref.size(-1), logits_score.size(-1))
             logits_ref = logits_ref[:, :vocab_size]
             logits_score = logits_score[:, :vocab_size]
 
-        lprobs_score = torch.log_softmax(logits_score, dim=-1)
-        labels = text_encoding.input_ids[1:]
-        labels_expanded = labels.unsqueeze(-1)
-        log_likelihood = lprobs_score.gather(dim=-1, index=labels_expanded).squeeze(-1)
+        lprobs_score: torch.Tensor = torch.log_softmax(logits_score, dim=-1)
+        labels: torch.Tensor = text_encoding.input_ids[1:]
+        labels_expanded: torch.Tensor = labels.unsqueeze(-1)
+        log_likelihood: torch.Tensor = lprobs_score.gather(dim=-1, index=labels_expanded).squeeze(-1)
 
-        nsamples = 10000
-        lprobs_ref = torch.log_softmax(logits_ref, dim=-1)
-        distrib = torch.distributions.categorical.Categorical(logits=lprobs_ref)
-        samples = distrib.sample([nsamples]).transpose(0, 1)
+        nsamples: int = 10000
+        lprobs_ref: torch.Tensor = torch.log_softmax(logits_ref, dim=-1)
+        distrib: torch.distributions.categorical.Categorical = torch.distributions.categorical.Categorical(logits=lprobs_ref)
+        samples: torch.Tensor = distrib.sample([nsamples]).transpose(0, 1)
 
-        log_likelihood_x_samples = lprobs_score.gather(dim=-1, index=samples)
-        log_likelihood_x_tilde = log_likelihood_x_samples.mean(dim=0)
+        log_likelihood_x_samples: torch.Tensor = lprobs_score.gather(dim=-1, index=samples)
+        log_likelihood_x_tilde: torch.Tensor = log_likelihood_x_samples.mean(dim=0)
 
-        miu_tilde = log_likelihood_x_tilde.mean(dim=-1)
-        sigma_tilde = log_likelihood_x_tilde.std(dim=-1)
+        miu_tilde: torch.Tensor = log_likelihood_x_tilde.mean(dim=-1)
+        sigma_tilde: torch.Tensor = log_likelihood_x_tilde.std(dim=-1)
 
-        log_likelihood_x = log_likelihood.mean(dim=0)
+        log_likelihood_x: torch.Tensor = log_likelihood.mean(dim=0)
 
-        discrepancy = (log_likelihood_x - miu_tilde) / sigma_tilde
+        discrepancy: torch.Tensor = (log_likelihood_x - miu_tilde) / sigma_tilde
 
         return float(discrepancy.item())
 
@@ -778,7 +814,7 @@ class Detectors:
             observer_model_logits: torch.Tensor,
             reference_offset: int = 0,
             number_of_tokens_to_skip: int = 20,
-            device=None
+            device: Optional[Union[str, torch.device]] = None
         ) -> Tuple[float, float]:
         """
         DEBUG ONLY: This is an alternative implementation of the telescope formula designed for debugging/ablation purposes.
@@ -797,6 +833,42 @@ class Detectors:
         """
         if device is None:
             device = self.device
+
+        observer_model_logits = observer_model_logits.to(device)
+        performer_model_logits = performer_model_logits.to(device)
+        
+        text_input_ids: torch.Tensor = text_encodings["input_ids"].to(device)
+
+        total_cross_entropy_cross_perplexity: torch.Tensor = torch.tensor(0.0, device=device)
+        total_cross_entropy_normal_perplexity: torch.Tensor = torch.tensor(0.0, device=device)
+        tokens_evaluated: int = 0
+
+        current_token_index: int
+        for current_token_index in range(performer_model_logits.shape[0] - reference_offset):
+            if current_token_index < number_of_tokens_to_skip: continue
+
+            tokens_evaluated += 1
+
+            performer_next_token_logits: torch.Tensor = performer_model_logits[current_token_index, :].reshape(1, -1)
+            observer_next_token_logits: torch.Tensor = observer_model_logits[current_token_index, :].reshape(1, -1)
+
+            performer_next_tokens_logits_softmax: torch.Tensor = torch.softmax(performer_next_token_logits, dim=-1)
+            observer_next_token_logits_softmax: torch.Tensor = torch.softmax(observer_next_token_logits, dim=-1)
+
+            total_cross_entropy_cross_perplexity -= torch.matmul(performer_next_tokens_logits_softmax, torch.log(observer_next_token_logits_softmax).T).squeeze()
+            total_cross_entropy_normal_perplexity -= torch.log(performer_next_tokens_logits_softmax[0, text_input_ids[current_token_index + reference_offset]])
+
+        normal_perplexity: float
+        cross_perplexity: float
+        if tokens_evaluated > 0:
+            normal_perplexity = float((total_cross_entropy_normal_perplexity / tokens_evaluated).item())
+            cross_perplexity = float((total_cross_entropy_cross_perplexity / tokens_evaluated).item())
+        else:
+            normal_perplexity = 0.0
+            cross_perplexity = 0.0
+
+        return normal_perplexity, cross_perplexity
+
 
         observer_model_logits = observer_model_logits.to(device)
         performer_model_logits = performer_model_logits.to(device)

@@ -5,6 +5,7 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import sys
 sys.path.insert(0, os.getcwd())
 
+from typing import Dict, List, Tuple, Any, Optional, Set
 import numpy as np
 from sklearn.metrics import cohen_kappa_score, mutual_info_score, normalized_mutual_info_score
 import pandas as pd
@@ -22,12 +23,12 @@ from llm_text_detectors.utils import create_logistic_regression_classifier
 
 ### START GLOBALS -------------------------------------------------------------------------
 
-EXPERIMENT_FOLDER_NAME = "experiment_results"
-ANALYSIS_OUTPUT_FOLDER_NAME = "experiment_analyses"
-ANALYSIS_NAME = "error_independence_analysis"
+EXPERIMENT_FOLDER_NAME: str = "experiment_results"
+ANALYSIS_OUTPUT_FOLDER_NAME: str = "experiment_analyses"
+ANALYSIS_NAME: str = "error_independence_analysis"
 
 
-METRIC_CODENAMES_TO_TEST = {
+METRIC_CODENAMES_TO_TEST: Dict[str, List[str]] = {
     "gemma2_2B": ["telescope_perplexity", "binoculars_score", "perplexity", "log_rank_ratio", "fast_detectgpt"],
     "gemma2_9B": ["telescope_perplexity", "binoculars_score", "perplexity", "log_rank_ratio", "fast_detectgpt"],
     "llama3_8B": ["telescope_perplexity", "binoculars_score", "perplexity", "log_rank_ratio", "fast_detectgpt"],
@@ -42,7 +43,7 @@ METRIC_CODENAMES_TO_TEST = {
 }
 
 
-DATASET_CODENAMES_TO_TEST = [
+DATASET_CODENAMES_TO_TEST: List[str] = [
     "detect_llm_text",
     "ai_human",
     "hc3",
@@ -68,13 +69,17 @@ os.makedirs(f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}", exist_ok=True)
 
 # a dictionary that maps a model's codename (for instance smollm2_360M) 
 # to a presentable, paper-ready name (for instance SmolLM2 360M)
-MODEL_CODENAME_TO_MODEL_DISPLAYNAME = yaml.safe_load(open("config.yaml"))["model_codenames_to_model_displaynames"]
+MODEL_CODENAME_TO_MODEL_DISPLAYNAME: Dict[str, str] = yaml.safe_load(open("config.yaml"))["model_codenames_to_model_displaynames"]
 
 
 
 
 
-def calculate_agreement_statistics(predictions1, predictions2, actual_labels):
+def calculate_agreement_statistics(
+    predictions1: np.ndarray,
+    predictions2: np.ndarray,
+    actual_labels: np.ndarray
+) -> Tuple[float, float, float]:
     """
     Calculate agreement statistics between two classifiers
     
@@ -93,40 +98,48 @@ def calculate_agreement_statistics(predictions1, predictions2, actual_labels):
         f"Arrays must have same length: {len(predictions1)}, {len(predictions2)}, {len(actual_labels)}"
     
     # Convert predictions to binary if they aren't already
-    pred1_binary = (predictions1 > 0.5).astype(int)
-    pred2_binary = (predictions2 > 0.5).astype(int)
+    pred1_binary: np.ndarray = (predictions1 > 0.5).astype(int)
+    pred2_binary: np.ndarray = (predictions2 > 0.5).astype(int)
     
     # Calculate Kappa statistic (agreement beyond chance)
-    kappa = cohen_kappa_score(pred1_binary, pred2_binary)
+    kappa: float = float(cohen_kappa_score(pred1_binary, pred2_binary))
     
     # Calculate contingency table for Q-statistic
-    n11 = np.sum((pred1_binary == 1) & (pred2_binary == 1))
-    n10 = np.sum((pred1_binary == 1) & (pred2_binary == 0))
-    n01 = np.sum((pred1_binary == 0) & (pred2_binary == 1))
-    n00 = np.sum((pred1_binary == 0) & (pred2_binary == 0))
+    n11: int = int(np.sum((pred1_binary == 1) & (pred2_binary == 1)))
+    n10: int = int(np.sum((pred1_binary == 1) & (pred2_binary == 0)))
+    n01: int = int(np.sum((pred1_binary == 0) & (pred2_binary == 1)))
+    n00: int = int(np.sum((pred1_binary == 0) & (pred2_binary == 0)))
     
     # Calculate Yule's Q statistic (ranges from -1 to 1)
     # Q = (n11*n00 - n10*n01) / (n11*n00 + n10*n01)
-    numerator = n11 * n00 - n10 * n01
-    denominator = n11 * n00 + n10 * n01
-    q_statistic = numerator / denominator if denominator != 0 else 0
+    numerator: int = n11 * n00 - n10 * n01
+    denominator: int = n11 * n00 + n10 * n01
+    q_statistic: float = numerator / denominator if denominator != 0 else 0.0
     
     # Calculate mutual information between errors
-    errors1 = (pred1_binary != actual_labels).astype(int)
-    errors2 = (pred2_binary != actual_labels).astype(int)
+    errors1: np.ndarray = (pred1_binary != actual_labels).astype(int)
+    errors2: np.ndarray = (pred2_binary != actual_labels).astype(int)
     
     # Calculate mutual information between errors
     # Handle the case where one classifier gets everything right or wrong
     # (which would cause NMI to be undefined)
+    mutual_info: float
     if len(np.unique(errors1)) < 2 or len(np.unique(errors2)) < 2:
         mutual_info = 0.0  # No mutual information if one has no variation
     else:
-        mutual_info = normalized_mutual_info_score(errors1, errors2)
+        mutual_info = float(normalized_mutual_info_score(errors1, errors2))
     
     return kappa, q_statistic, mutual_info
 
 
-def plot_agreement_heatmap(matrix, labels, stat_name, dataset_codename, vmin=0, vmax=1):
+def plot_agreement_heatmap(
+    matrix: np.ndarray,
+    labels: List[str],
+    stat_name: str,
+    dataset_codename: str,
+    vmin: float = 0.0,
+    vmax: float = 1.0
+) -> None:
     """
     Create a heatmap visualization for an agreement statistic
     
@@ -140,6 +153,8 @@ def plot_agreement_heatmap(matrix, labels, stat_name, dataset_codename, vmin=0, 
     """
     plt.figure(figsize=(14, 12))
     
+    cmap: str
+    title: str
     # Choose appropriate colormap
     if stat_name == 'mutual_info':
         # Higher values indicate more dependency between errors
@@ -176,13 +191,13 @@ def plot_agreement_heatmap(matrix, labels, stat_name, dataset_codename, vmin=0, 
     plt.tight_layout()
     
     # Save the plot
-    output_path = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{stat_name}_{dataset_codename}_heatmap.png"
+    output_path: str = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{stat_name}_{dataset_codename}_heatmap.png"
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"Saved {stat_name} heatmap for {dataset_codename} to {output_path}")
 
 
-def process_dataset(dataset_codename):
+def process_dataset(dataset_codename: str) -> Dict[str, Any]:
     """
     Process a single dataset to calculate agreement statistics between classifiers
     
@@ -195,34 +210,37 @@ def process_dataset(dataset_codename):
     print(f"\nProcessing dataset: {dataset_codename}")
     
     # For storing classifier info
-    classifiers = {}  # Store trained classifiers
-    predictions = {}  # Store classifier predictions
-    feature_values = {}  # Store feature values
-    actual_labels = None  # Will store ground truth labels
-    classifier_keys = []  # Keys to identify each classifier
-    data_lengths = {}  # Store data lengths for each classifier
+    classifiers: Dict[str, Any] = {}  # Store trained classifiers
+    predictions: Dict[str, np.ndarray] = {}  # Store classifier predictions
+    feature_values: Dict[str, np.ndarray] = {}  # Store feature values
+    actual_labels: Optional[np.ndarray] = None  # Will store ground truth labels
+    classifier_keys: List[str] = []  # Keys to identify each classifier
+    data_lengths: Dict[str, int] = {}  # Store data lengths for each classifier
     
     # Process each model and feature
+    model_codename: str
+    features_from_experiment: List[str]
     for model_codename, features_from_experiment in METRIC_CODENAMES_TO_TEST.items():
         
-        model_displayname = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]
-        df_path = f"{EXPERIMENT_FOLDER_NAME}/{model_codename}_{dataset_codename}_dataset/raw_data.csv"
+        model_displayname: str = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]
+        df_path: str = f"{EXPERIMENT_FOLDER_NAME}/{model_codename}_{dataset_codename}_dataset/raw_data.csv"
         
         # Load the CSV once per model
         try:
-            df = pd.read_csv(df_path)
+            df: pd.DataFrame = pd.read_csv(df_path)
             df = df.replace([np.inf, -np.inf], np.nan)
         except Exception as e:
             print(f"  Error loading dataset for {model_codename} on {dataset_codename}: {e}")
             continue
             
+        feature: str
         for feature in features_from_experiment:
             # Create a key for this classifier
-            classifier_key = f"{model_displayname}_{feature}"
+            classifier_key: str = f"{model_displayname}_{feature}"
             
             try:
                 # Drop NaN only for the specific feature and y_labels
-                feature_df = df.dropna(subset=[feature, "y_labels"])
+                feature_df: pd.DataFrame = df.dropna(subset=[feature, "y_labels"])
                 
                 if len(feature_df) < 50:  # Skip if too few samples
                     print(f"  Skipping {classifier_key} - insufficient data")
@@ -236,9 +254,9 @@ def process_dataset(dataset_codename):
                     actual_labels = feature_df["y_labels"].values
                 
                 # Create and train the classifier
-                X = feature_df[[feature]].values
-                y = feature_df["y_labels"].values
-                classifier = create_logistic_regression_classifier(X, y)
+                X: np.ndarray = feature_df[[feature]].values
+                y: np.ndarray = feature_df["y_labels"].values
+                classifier: Any = create_logistic_regression_classifier(X, y)
                 
                 # Store the classifier and its predictions
                 classifiers[classifier_key] = classifier
@@ -253,18 +271,20 @@ def process_dataset(dataset_codename):
             
     
     # Calculate agreement statistics for all pairs
-    n_classifiers = len(classifier_keys)
+    n_classifiers: int = len(classifier_keys)
     
     # Initialize matrices for each statistic
-    kappa_matrix = np.zeros((n_classifiers, n_classifiers))
-    q_statistic_matrix = np.zeros((n_classifiers, n_classifiers))
-    mutual_info_matrix = np.zeros((n_classifiers, n_classifiers))
+    kappa_matrix: np.ndarray = np.zeros((n_classifiers, n_classifiers))
+    q_statistic_matrix: np.ndarray = np.zeros((n_classifiers, n_classifiers))
+    mutual_info_matrix: np.ndarray = np.zeros((n_classifiers, n_classifiers))
     
     # Calculate statistics for all pairs
+    i: int
+    j: int
     for i in range(n_classifiers):
         for j in range(n_classifiers):
-            key_i = classifier_keys[i]
-            key_j = classifier_keys[j]
+            key_i: str = classifier_keys[i]
+            key_j: str = classifier_keys[j]
             
             if i == j:
                 # Perfect agreement with self
@@ -273,15 +293,19 @@ def process_dataset(dataset_codename):
                 mutual_info_matrix[i, j] = 1.0
             else:
                 # Calculate agreement statistics
-                pred_i = predictions[key_i]
-                pred_j = predictions[key_j]
+                pred_i: np.ndarray = predictions[key_i]
+                pred_j: np.ndarray = predictions[key_j]
                 
                 # Ensure arrays have the same length
-                min_length = min(len(pred_i), len(pred_j), len(actual_labels))
-                pred_i_trimmed = pred_i[:min_length]
-                pred_j_trimmed = pred_j[:min_length]
-                actual_labels_trimmed = actual_labels[:min_length]
+                assert actual_labels is not None
+                min_length: int = min(len(pred_i), len(pred_j), len(actual_labels))
+                pred_i_trimmed: np.ndarray = pred_i[:min_length]
+                pred_j_trimmed: np.ndarray = pred_j[:min_length]
+                actual_labels_trimmed: np.ndarray = actual_labels[:min_length]
                 
+                kappa: float
+                q: float
+                mi: float
                 kappa, q, mi = calculate_agreement_statistics(pred_i_trimmed, pred_j_trimmed, actual_labels_trimmed)
                 
                 kappa_matrix[i, j] = kappa
@@ -290,24 +314,24 @@ def process_dataset(dataset_codename):
     
     # Create heatmaps
     plot_agreement_heatmap(kappa_matrix, classifier_keys, 'kappa', dataset_codename)
-    plot_agreement_heatmap(q_statistic_matrix, classifier_keys, 'q_statistic', dataset_codename, vmin=-1, vmax=1)
+    plot_agreement_heatmap(q_statistic_matrix, classifier_keys, 'q_statistic', dataset_codename, vmin=-1.0, vmax=1.0)
     plot_agreement_heatmap(mutual_info_matrix, classifier_keys, 'mutual_info', dataset_codename)
     
     # Calculate average statistics for each classifier (how independent it is from others)
-    average_kappa = np.zeros(n_classifiers)
-    average_q_statistic = np.zeros(n_classifiers)
-    average_mutual_information = np.zeros(n_classifiers)
+    average_kappa: np.ndarray = np.zeros(n_classifiers)
+    average_q_statistic: np.ndarray = np.zeros(n_classifiers)
+    average_mutual_information: np.ndarray = np.zeros(n_classifiers)
     
     for i in range(n_classifiers):
         # Calculate average agreement with all other classifiers (excluding self)
-        others = list(range(n_classifiers))
+        others: List[int] = list(range(n_classifiers))
         others.remove(i)
         
         average_kappa[i] = np.mean(kappa_matrix[i, others])
         average_q_statistic[i] = np.mean(q_statistic_matrix[i, others])
         average_mutual_information[i] = np.mean(mutual_info_matrix[i, others])
     
-    summary_df = pd.DataFrame({
+    summary_df: pd.DataFrame = pd.DataFrame({
         'Classifier': classifier_keys,
         'Average_Kappa': average_kappa,
         'Average_Q_Statistic': average_q_statistic,
@@ -316,7 +340,7 @@ def process_dataset(dataset_codename):
     
     summary_df = summary_df.sort_values('Average_Q_Statistic')
     
-    summary_path = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{dataset_codename}_summary.csv"
+    summary_path: str = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{dataset_codename}_summary.csv"
     summary_df.to_csv(summary_path, index=False)
     print(f"Saved summary to {summary_path}")
     
@@ -333,41 +357,48 @@ def process_dataset(dataset_codename):
     }
 
 
-def aggregate_results(all_results):
+def aggregate_results(all_results: Dict[str, Any]) -> None:
     """
     Aggregate results across all datasets
     
     Args:
         all_results: Dictionary of results for each dataset
     """
-    all_keys = set()
+    all_keys: Set[str] = set()
+    dataset_results: Dict[str, Any]
     for dataset_results in all_results.values():
         all_keys.update(dataset_results['classifier_keys'])
     
-    all_keys = sorted(list(all_keys))
-    n_keys = len(all_keys)
+    all_keys_list: List[str] = sorted(list(all_keys))
+    n_keys: int = len(all_keys_list)
     
-    agg_kappa = np.zeros((n_keys, n_keys))
-    agg_q = np.zeros((n_keys, n_keys))
-    agg_mi = np.zeros((n_keys, n_keys))
+    agg_kappa: np.ndarray = np.zeros((n_keys, n_keys))
+    agg_q: np.ndarray = np.zeros((n_keys, n_keys))
+    agg_mi: np.ndarray = np.zeros((n_keys, n_keys))
     
-    count_matrix = np.zeros((n_keys, n_keys))
+    count_matrix: np.ndarray = np.zeros((n_keys, n_keys))
     
+    dataset_codename: str
+    results: Dict[str, Any]
     for dataset_codename, results in all_results.items():
-        keys = results['classifier_keys']
+        keys: List[str] = results['classifier_keys']
         
+        i: int
+        key_i: str
         for i, key_i in enumerate(keys):
-            i_global = all_keys.index(key_i)
+            i_global: int = all_keys_list.index(key_i)
             
+            j: int
+            key_j: str
             for j, key_j in enumerate(keys):
-                j_global = all_keys.index(key_j)
+                j_global: int = all_keys_list.index(key_j)
                 
                 agg_kappa[i_global, j_global] += results['kappa'][i, j]
                 agg_q[i_global, j_global] += results['q_statistic'][i, j]
                 agg_mi[i_global, j_global] += results['mutual_info'][i, j]
                 count_matrix[i_global, j_global] += 1
     
-    mask = count_matrix > 0
+    mask: np.ndarray = count_matrix > 0
     agg_kappa[mask] /= count_matrix[mask]
     agg_q[mask] /= count_matrix[mask]
     agg_mi[mask] /= count_matrix[mask]
@@ -376,29 +407,29 @@ def aggregate_results(all_results):
     np.fill_diagonal(agg_q, 1.0)
     np.fill_diagonal(agg_mi, 1.0)
     
-    plot_agreement_heatmap(agg_kappa, all_keys, 'kappa', 'aggregated')
-    plot_agreement_heatmap(agg_q, all_keys, 'q_statistic', 'aggregated', vmin=-1, vmax=1)
-    plot_agreement_heatmap(agg_mi, all_keys, 'mutual_info', 'aggregated')
+    plot_agreement_heatmap(agg_kappa, all_keys_list, 'kappa', 'aggregated')
+    plot_agreement_heatmap(agg_q, all_keys_list, 'q_statistic', 'aggregated', vmin=-1.0, vmax=1.0)
+    plot_agreement_heatmap(agg_mi, all_keys_list, 'mutual_info', 'aggregated')
     
-    average_kappa = np.zeros(n_keys)
-    average_q_statistic = np.zeros(n_keys)
-    average_mutual_information = np.zeros(n_keys)
+    average_kappa: np.ndarray = np.zeros(n_keys)
+    average_q_statistic: np.ndarray = np.zeros(n_keys)
+    average_mutual_information: np.ndarray = np.zeros(n_keys)
     
     for i in range(n_keys):
-        others = list(range(n_keys))
+        others: List[int] = list(range(n_keys))
         others.remove(i)
         
-        kappa_values = [agg_kappa[i, j] for j in others if count_matrix[i, j] > 0]
-        q_values = [agg_q[i, j] for j in others if count_matrix[i, j] > 0]
-        mi_values = [agg_mi[i, j] for j in others if count_matrix[i, j] > 0]
+        kappa_values: List[float] = [float(agg_kappa[i, j]) for j in others if count_matrix[i, j] > 0]
+        q_values: List[float] = [float(agg_q[i, j]) for j in others if count_matrix[i, j] > 0]
+        mi_values: List[float] = [float(agg_mi[i, j]) for j in others if count_matrix[i, j] > 0]
         
-        average_kappa[i] = np.mean(kappa_values) if kappa_values else np.nan
-        average_q_statistic[i] = np.mean(q_values) if q_values else np.nan
-        average_mutual_information[i] = np.mean(mi_values) if mi_values else np.nan
+        average_kappa[i] = float(np.mean(kappa_values)) if kappa_values else np.nan
+        average_q_statistic[i] = float(np.mean(q_values)) if q_values else np.nan
+        average_mutual_information[i] = float(np.mean(mi_values)) if mi_values else np.nan
     
 
-    agg_summary_df = pd.DataFrame({
-        'Classifier': all_keys,
+    agg_summary_df: pd.DataFrame = pd.DataFrame({
+        'Classifier': all_keys_list,
         'Average_Kappa': average_kappa,
         'Average_Q_Statistic': average_q_statistic,
         'Average_Mutual_Info': average_mutual_information,
@@ -407,7 +438,7 @@ def aggregate_results(all_results):
 
     agg_summary_df = agg_summary_df.sort_values('Average_Q_Statistic')
     
-    agg_summary_path = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/aggregated_summary.csv"
+    agg_summary_path: str = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/aggregated_summary.csv"
     agg_summary_df.to_csv(agg_summary_path, index=False)
     print(f"\nSaved aggregated summary to {agg_summary_path}")
     
@@ -420,10 +451,11 @@ def aggregate_results(all_results):
 
 
 
-def main():
+def main() -> None:
     print(f"Starting error independence analysis for {len(DATASET_CODENAMES_TO_TEST)} datasets")
     
-    all_results = {}
+    all_results: Dict[str, Any] = {}
+    dataset_codename: str
     for dataset_codename in DATASET_CODENAMES_TO_TEST:
         all_results[dataset_codename] = process_dataset(dataset_codename)
     

@@ -3,6 +3,7 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import sys
 sys.path.insert(0, os.getcwd())
 
+from typing import Any, Dict, List, Tuple, Union, Optional, Type
 import pandas as pd
 import numpy as np
 
@@ -17,14 +18,14 @@ from llm_text_detectors.utils import create_logistic_regression_classifier
 
 ### START GLOBALS -------------------------------------------------------------------------
 
-SHOULD_PERFORM_TRANSFERABILITY_TEST = False
-SHOULD_AVERAGE_RESULTS_ACROSS_REFERENCE_MODEL = False
+SHOULD_PERFORM_TRANSFERABILITY_TEST: bool = False
+SHOULD_AVERAGE_RESULTS_ACROSS_REFERENCE_MODEL: bool = False
 
-EXPERIMENT_FOLDER_NAME = "experiment_results"
-ANALYSIS_OUTPUT_FOLDER_NAME = "experiment_analyses"
-RAW_RESULTS_FILE_NAME = "experiment_analyses/raw_results"
+EXPERIMENT_FOLDER_NAME: str = "experiment_results"
+ANALYSIS_OUTPUT_FOLDER_NAME: str = "experiment_analyses"
+RAW_RESULTS_FILE_NAME: str = "experiment_analyses/raw_results"
 
-METRIC_CODENAMES_TO_TEST = {
+METRIC_CODENAMES_TO_TEST: Dict[str, List[str]] = {
     "gemma2_2B": ["telescope_perplexity", "binoculars_score", "perplexity", "log_rank_ratio", "fast_detectgpt"],
     "gemma2_9B": ["telescope_perplexity", "binoculars_score", "perplexity", "log_rank_ratio", "fast_detectgpt"],
     "llama3_8B": ["telescope_perplexity", "binoculars_score", "perplexity", "log_rank_ratio", "fast_detectgpt"],
@@ -41,7 +42,7 @@ METRIC_CODENAMES_TO_TEST = {
     "gpt_j_6B": ["telescope_perplexity", "binoculars_score", "perplexity", "log_rank_ratio", "fast_detectgpt"]
 }
 
-DATASET_CODENAMES_TO_TEST = [
+DATASET_CODENAMES_TO_TEST: List[str] = [
     "detect_llm_text",
     "ai_human",
     "hc3",
@@ -86,6 +87,7 @@ DATASET_CODENAMES_TO_TEST = [
     # "m4_urdu_chatgpt",
     
 
+
     # "ghostbusters_perturb_character_basic_50",
     # "ghostbusters_perturb_character_capitalization_50",
     # "ghostbusters_perturb_character_space_50",
@@ -104,40 +106,50 @@ DATASET_CODENAMES_TO_TEST = [
 
 
 # a dictionary that maps a dataset's codename (for instance ghostbusters_essay_gpt) to a presentable, paper-ready name (for instance GB Essay ChatGPT)
-DATASET_CODENAME_TO_DATASET_DISPLAYNAME = yaml.safe_load(open("config.yaml"))["dataset_codenames_to_dataset_displaynames"]
+DATASET_CODENAME_TO_DATASET_DISPLAYNAME: Dict[str, str] = yaml.safe_load(open("config.yaml"))["dataset_codenames_to_dataset_displaynames"]
 
 # a dictionary that maps a model's codename (for instance smollm2_360M) to a presentable, paper-ready name (for instance SmolLM2 360M)
-MODEL_CODENAME_TO_MODEL_DISPLAYNAME = yaml.safe_load(open("config.yaml"))["model_codenames_to_model_displaynames"]
+MODEL_CODENAME_TO_MODEL_DISPLAYNAME: Dict[str, str] = yaml.safe_load(open("config.yaml"))["model_codenames_to_model_displaynames"]
 
 
 
 
-def generate_latex_table_from_data(result_dict, dataset_codenames_to_show, metric_codenames_to_show, score_name, score_type):
+def generate_latex_table_from_data(
+    result_dict: Dict[Tuple[str, str, str], Dict[str, Any]],
+    dataset_codenames_to_show: List[str],
+    metric_codenames_to_show: Dict[str, List[str]],
+    score_name: str,
+    score_type: Type[Union[float, tuple]]
+) -> None:
     
+    dataset_codename: str
     for dataset_codename in dataset_codenames_to_show:
-        print("\midrule\n\multirow{12}{*}" + r"{" + f"{DATASET_CODENAME_TO_DATASET_DISPLAYNAME[dataset_codename]}" + r"}")
+        print(r"\midrule" + "\n" + r"\multirow{12}{*}" + r"{" + f"{DATASET_CODENAME_TO_DATASET_DISPLAYNAME[dataset_codename]}" + r"}")
         
+        model_codename: str
+        metric_codenames_from_experiment: List[str]
         for model_codename, metric_codenames_from_experiment in metric_codenames_to_show.items():
             
-            model_displayname = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]
+            model_displayname: str = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]
             
             # figure out which metric to bold to highlight best performance if this is a raw score
+            best_metric_codenames: List[str] = []
             if score_type == float:
-                best_metric_codenames: list[str] = []
-                best_metric_score = -np.inf
+                best_metric_score: float = -np.inf
+                metric_codename: str
                 for metric_codename in metric_codenames_from_experiment:
-                    score = result_dict[(dataset_codename, model_displayname, metric_codename)][score_name]
+                    score: Any = result_dict[(dataset_codename, model_displayname, metric_codename)][score_name]
                     
                     if score > best_metric_score:
                         best_metric_codenames = [metric_codename,]
                         best_metric_score = score 
                         
-                    if score == best_metric_score:
+                    elif score == best_metric_score:
                         best_metric_codenames.append(metric_codename)
                 
                 
                 
-            stuff_to_print = ""
+            stuff_to_print: str = ""
             for metric_codename in metric_codenames_from_experiment:
                 score = result_dict[(dataset_codename, model_displayname, metric_codename)][score_name]
                 
@@ -163,31 +175,42 @@ def generate_latex_table_from_data(result_dict, dataset_codenames_to_show, metri
 
 
 
-def generate_latex_table_from_data_averaged_across_reference_models(result_dict, dataset_codenames_to_show, metric_codenames_to_show, score_name, score_type): 
+def generate_latex_table_from_data_averaged_across_reference_models(
+    result_dict: Dict[Tuple[str, str, str], Dict[str, Any]],
+    dataset_codenames_to_show: List[str],
+    metric_codenames_to_show: Dict[str, List[str]],
+    score_name: str,
+    score_type: Type[Union[float, tuple]]
+) -> None: 
    
     # generate latex code for results averaged across reference models (AUROC)
+    dataset_codename: str
     for dataset_codename in dataset_codenames_to_show:
         
+        total_scores: Dict[str, Any]
         if score_type == float: # for normal score values
-            total_scores = {metric_codename: 0 for metric_codenames_from_experiment in metric_codenames_to_show.values() for metric_codename in metric_codenames_from_experiment}
+            total_scores = {metric_codename: 0.0 for metric_codenames_from_experiment in metric_codenames_to_show.values() for metric_codename in metric_codenames_from_experiment}
         
         elif score_type == tuple:  # for confidence intervals
-            total_scores = {metric_codename: (0, 0) for metric_codenames_from_experiment in metric_codenames_to_show.values() for metric_codename in metric_codenames_from_experiment} 
+            total_scores = {metric_codename: (0.0, 0.0) for metric_codenames_from_experiment in metric_codenames_to_show.values() for metric_codename in metric_codenames_from_experiment} 
         
         else:
             raise Exception("score_type not correct")
         
         
-        number_of_each_metric = {metric_codename: 0 for metric_codenames_from_experiment in metric_codenames_to_show.values() for metric_codename in metric_codenames_from_experiment}
+        number_of_each_metric: Dict[str, int] = {metric_codename: 0 for metric_codenames_from_experiment in metric_codenames_to_show.values() for metric_codename in metric_codenames_from_experiment}
 
         # compute the total scores of each model-metric combination
+        model_codename: str
+        metric_codenames_from_experiment: List[str]
         for model_codename, metric_codenames_from_experiment in metric_codenames_to_show.items():
                         
-            model_displayname = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]
+            model_displayname: str = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]
 
+            metric_codename: str
             for metric_codename in metric_codenames_from_experiment:
                 
-                score = result_dict[(dataset_codename, model_displayname, metric_codename)][score_name]
+                score: Any = result_dict[(dataset_codename, model_displayname, metric_codename)][score_name]
                 
                 if score_type == float:
                     if not pd.isna(score):
@@ -201,9 +224,9 @@ def generate_latex_table_from_data_averaged_across_reference_models(result_dict,
         
         
         # figure out which metric to bold to highlight best performance if this is a raw score
+        best_metric_codenames: List[str] = []
         if score_type == float:
-            best_metric_codenames: list[str] = []
-            best_metric_score = -np.inf
+            best_metric_score: float = -np.inf
             for metric_codename in metric_codenames_from_experiment:
                 score = total_scores[metric_codename]
                 
@@ -211,17 +234,18 @@ def generate_latex_table_from_data_averaged_across_reference_models(result_dict,
                     best_metric_codenames = [metric_codename,]
                     best_metric_score = score 
                     
-                if score == best_metric_score:
+                elif score == best_metric_score:
                     best_metric_codenames.append(metric_codename)
                         
                         
-        stuff_to_print = f"{DATASET_CODENAME_TO_DATASET_DISPLAYNAME[dataset_codename]}"
+        stuff_to_print: str = f"{DATASET_CODENAME_TO_DATASET_DISPLAYNAME[dataset_codename]}"
+        metric_codename: str
         for metric_codename, total_score in total_scores.items():
             
             if score_type == float:
-                num = number_of_each_metric[metric_codename]
+                num: int = number_of_each_metric[metric_codename]
                 if num > 0:
-                    average_score = total_score / num
+                    average_score: float = total_score / num
                     if metric_codename in best_metric_codenames:
                         stuff_to_print += f"& \\textbf{{{average_score:.5f}}}"
                     else:
@@ -232,8 +256,8 @@ def generate_latex_table_from_data_averaged_across_reference_models(result_dict,
             if score_type == tuple:
                 num = number_of_each_metric[metric_codename]
                 if num > 0:
-                    average_score = (total_score[0] / num, total_score[1] / num)
-                    stuff_to_print += f"& ({average_score[0]:.5f}, {average_score[1]:.5f}) "
+                    average_score_tuple: Tuple[float, float] = (total_score[0] / num, total_score[1] / num)
+                    stuff_to_print += f"& ({average_score_tuple[0]:.5f}, {average_score_tuple[1]:.5f}) "
                 else:
                     stuff_to_print += f"& (nan, nan) "
              
@@ -246,80 +270,88 @@ def generate_latex_table_from_data_averaged_across_reference_models(result_dict,
 
 
 
-def _calculate_interpolated_tpr(y_true, y_scores, target_fpr):
+def _calculate_interpolated_tpr(y_true: np.ndarray, y_scores: np.ndarray, target_fpr: float) -> float:
     """
     Helper function to calculate true positive rate at a fixed false positive rate
     using ROC interpolation. Used by both the point estimate and the bootstrap to ensure consistency.
     """
-    desc_indices = np.argsort(y_scores)[::-1]
-    y_true_sorted = y_true[desc_indices]
+    desc_indices: np.ndarray = np.argsort(y_scores)[::-1]
+    y_true_sorted: np.ndarray = y_true[desc_indices]
 
-    tps = np.cumsum(y_true_sorted, dtype=float)
-    fps = np.cumsum(1 - y_true_sorted, dtype=float)
+    tps: np.ndarray = np.cumsum(y_true_sorted, dtype=float)
+    fps: np.ndarray = np.cumsum(1 - y_true_sorted, dtype=float)
     
-    n_pos = tps[-1]
-    n_neg = fps[-1]
+    n_pos: float = tps[-1]
+    n_neg: float = fps[-1]
     
     if n_neg == 0 or n_pos == 0:
         return np.nan
 
-    fprs = fps / n_neg
-    tprs = tps / n_pos
+    fprs: np.ndarray = fps / n_neg
+    tprs: np.ndarray = tps / n_pos
     
     fprs = np.concatenate([[0.0], fprs])
     tprs = np.concatenate([[0.0], tprs])
     
     # Linearly interpolate the TPR value at the exact target_fpr
-    return np.interp(target_fpr, fprs, tprs)
+    return float(np.interp(target_fpr, fprs, tprs))
 
 
-def bootstrap_tpr_at_fixed_fpr_confidence_interval(y_true, y_scores, target_fpr=0.05, n_bootstraps=1000, alpha=0.95, random_state=None):
+def bootstrap_tpr_at_fixed_fpr_confidence_interval(
+    y_true: Any,
+    y_scores: Any,
+    target_fpr: float = 0.05,
+    n_bootstraps: int = 1000,
+    alpha: float = 0.95,
+    random_state: Optional[int] = None
+) -> Tuple[float, float]:
     """
     Calculates confidence intervals for TPR at fixed FPR using bootstrapping.
     """
-    rng = np.random.default_rng(random_state)
+    rng: np.random.Generator = np.random.default_rng(random_state)
     
-    y_true = np.array(y_true)
-    y_scores = np.array(y_scores)
+    y_true_arr: np.ndarray = np.array(y_true)
+    y_scores_arr: np.ndarray = np.array(y_scores)
     
-    negatives_mask = (y_true == 0)
-    positives_mask = (y_true == 1)
+    negatives_mask: np.ndarray = (y_true_arr == 0)
+    positives_mask: np.ndarray = (y_true_arr == 1)
     
-    neg_scores = y_scores[negatives_mask]
-    pos_scores = y_scores[positives_mask]
+    neg_scores: np.ndarray = y_scores_arr[negatives_mask]
+    pos_scores: np.ndarray = y_scores_arr[positives_mask]
     
-    n_neg = len(neg_scores)
-    n_pos = len(pos_scores)
+    n_neg: int = len(neg_scores)
+    n_pos: int = len(pos_scores)
 
     if n_neg == 0 or n_pos == 0: 
         return (np.nan, np.nan)
 
-    tpr_bootstraps = np.zeros(n_bootstraps)
+    tpr_bootstraps: np.ndarray = np.zeros(n_bootstraps)
     
     # Pre-calculate the percentile target
-    percentile_target = (1 - target_fpr) * 100
+    percentile_target: float = (1.0 - target_fpr) * 100.0
 
+    i: int
     for i in range(n_bootstraps):
         # Stratified resampling (preserve class balance of original sample)
-        neg_resampled = rng.choice(neg_scores, size=n_neg, replace=True)
-        pos_resampled = rng.choice(pos_scores, size=n_pos, replace=True)
+        neg_resampled: np.ndarray = rng.choice(neg_scores, size=n_neg, replace=True)
+        pos_resampled: np.ndarray = rng.choice(pos_scores, size=n_pos, replace=True)
         
         # Calculate threshold using linear interpolation
-        threshold = np.percentile(neg_resampled, percentile_target, method='linear')
+        threshold: float = float(np.percentile(neg_resampled, percentile_target, method='linear'))
         
         # Calculate TPR using linear interpolation logic: 
         # (count of scores > threshold + fractional count for scores == threshold)
         # However, the standard way to interpolate TPR at a fixed FPR is via the ROC curve.
-        pos_sorted = np.sort(pos_resampled)
+        pos_sorted: np.ndarray = np.sort(pos_resampled)
         # Find where the threshold would sit in the positive distribution
-        tpr = 1.0 - (np.searchsorted(pos_sorted, threshold, side='left') / n_pos)
+        tpr: float = 1.0 - (np.searchsorted(pos_sorted, threshold, side='left') / n_pos)
         
         tpr_bootstraps[i] = tpr
     
-    lower_p = (1.0 - alpha) / 2.0 * 100
-    upper_p = (alpha + (1.0 - alpha) / 2.0) * 100
+    lower_p: float = (1.0 - alpha) / 2.0 * 100.0
+    upper_p: float = (alpha + (1.0 - alpha) / 2.0) * 100.0
     
-    return np.percentile(tpr_bootstraps, lower_p), np.percentile(tpr_bootstraps, upper_p)
+    return float(np.percentile(tpr_bootstraps, lower_p)), float(np.percentile(tpr_bootstraps, upper_p))
 
 
 # def tpr_at_fixed_fpr(y_true, y_scores, target_fpr=0.05):
@@ -333,7 +365,7 @@ def bootstrap_tpr_at_fixed_fpr_confidence_interval(y_true, y_scores, target_fpr=
 #     return _calculate_interpolated_tpr(y_true, y_scores, target_fpr)
 
 
-def tpr_at_fixed_fpr(y_true, y_scores, target_fpr=0.05):
+def tpr_at_fixed_fpr(y_true: Any, y_scores: Any, target_fpr: float = 0.05) -> float:
     """
     Calculates true positive rate at a specific fixed false positive rate.
     
@@ -355,34 +387,39 @@ def tpr_at_fixed_fpr(y_true, y_scores, target_fpr=0.05):
         The True Positive Rate (Sensitivity) at the given FPR.
     """
     # Ensure inputs are numpy float arrays
-    y_true = np.array(y_true).astype(float)
-    y_scores = np.array(y_scores).astype(float)
+    y_true_arr: np.ndarray = np.array(y_true).astype(float)
+    y_scores_arr: np.ndarray = np.array(y_scores).astype(float)
     
     # Split scores by class
-    neg_scores = y_scores[y_true == 0]
-    pos_scores = y_scores[y_true == 1]
+    neg_scores: np.ndarray = y_scores_arr[y_true_arr == 0]
+    pos_scores: np.ndarray = y_scores_arr[y_true_arr == 1]
     
     if len(neg_scores) == 0 or len(pos_scores) == 0:
         return np.nan
 
     # Calculate the threshold using linear interpolation on the negative scores.
-    threshold = np.percentile(neg_scores, 100 - (target_fpr * 100), method='linear')
+    threshold: float = float(np.percentile(neg_scores, 100.0 - (target_fpr * 100.0), method='linear'))
     
     # Calculate the TPR. Using searchsorted on sorted positives provides 
     # the rank-based interpolation.
-    pos_sorted = np.sort(pos_scores)
-    tpr = 1.0 - (np.searchsorted(pos_sorted, threshold, side='left') / len(pos_scores))
+    pos_sorted: np.ndarray = np.sort(pos_scores)
+    tpr: float = 1.0 - (np.searchsorted(pos_sorted, threshold, side='left') / len(pos_scores))
     
     return tpr
 
-def generate_roc_curve_from_metric():
+def generate_roc_curve_from_metric() -> None:
     os.makedirs(ANALYSIS_OUTPUT_FOLDER_NAME, exist_ok=True)
-    result_dict = {}
+    result_dict: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    
+    model_codename: str
+    metric_codenames_from_experiment: List[str]
     for model_codename, metric_codenames_from_experiment in METRIC_CODENAMES_TO_TEST.items():
         
-        model_displayname = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]
+        model_displayname: str = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]
         
+        dataset_codename: str
         for dataset_codename in DATASET_CODENAMES_TO_TEST:
+            metric_codename: str
             for metric_codename in metric_codenames_from_experiment:
                 result_dict[(dataset_codename, model_displayname, metric_codename)] = dict()
                 
@@ -400,15 +437,17 @@ def generate_roc_curve_from_metric():
         
         model_displayname = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]
         
+        test_dataset_codename: str
         for test_dataset_codename in DATASET_CODENAMES_TO_TEST:
             try:
-                df = pd.read_csv(f"{EXPERIMENT_FOLDER_NAME}/{model_codename}_{test_dataset_codename}_dataset/raw_data.csv")
-            except:
+                df: pd.DataFrame = pd.read_csv(f"{EXPERIMENT_FOLDER_NAME}/{model_codename}_{test_dataset_codename}_dataset/raw_data.csv")
+            except Exception:
                 print(f"{EXPERIMENT_FOLDER_NAME}/{model_codename}_{test_dataset_codename}_dataset/raw_data.csv failed")
                 continue
             
             # print(len(df))
 
+            col: str
             for col in metric_codenames_from_experiment:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -418,20 +457,23 @@ def generate_roc_curve_from_metric():
 
             # Filter out any rows where y_labels is not a valid class identifier due to parsing/quote mismatches
             df = df[df["y_labels"].astype(str).isin(["0", "1", "0.0", "1.0"])]
-            y_labels = df["y_labels"].astype(float).astype(int).astype(bool)
+            y_labels: pd.Series = df["y_labels"].astype(float).astype(int).astype(bool)
             
             if len(np.unique(y_labels)) < 2:
                 print(f"  Warning: Skipping {test_dataset_codename} for {model_codename} because y_labels contains only one class: {np.unique(y_labels)}.")
                 continue
             
             # print(f"MODEL: {model_displayname}, DATASET: {test_dataset_codename}")
+            combined_train_df: Optional[pd.DataFrame]
             if SHOULD_PERFORM_TRANSFERABILITY_TEST:
-                train_df_list = []
+                train_df_list: List[pd.DataFrame] = []
+                train_dataset_index: int
+                train_dataset_codename: str
                 for train_dataset_index, train_dataset_codename in enumerate(DATASET_CODENAMES_TO_TEST):
                     if (train_dataset_codename == test_dataset_codename): # don't test on the same dataset you train on
                         continue
                     try:
-                        train_df = pd.read_csv(f"{EXPERIMENT_FOLDER_NAME}/{model_codename}_{train_dataset_codename}_dataset/raw_data.csv")
+                        train_df: pd.DataFrame = pd.read_csv(f"{EXPERIMENT_FOLDER_NAME}/{model_codename}_{train_dataset_codename}_dataset/raw_data.csv")
                         for col in metric_codenames_from_experiment:
                             if col in train_df.columns:
                                 train_df[col] = pd.to_numeric(train_df[col], errors='coerce')
@@ -440,7 +482,7 @@ def generate_roc_curve_from_metric():
                         train_df = train_df[train_df["y_labels"].astype(str).isin(["0", "1", "0.0", "1.0"])]
                         train_df = train_df.head(2000)
                         train_df_list.append(train_df)
-                    except:
+                    except Exception:
                         pass
                 combined_train_df = pd.concat(train_df_list) if train_df_list else None
             else:
@@ -448,31 +490,38 @@ def generate_roc_curve_from_metric():
 
             for metric_codename in metric_codenames_from_experiment:
                                 
+                best_f1score_transfered_classifier: float
+                f1_confidence_interval_transfered_classifier: Tuple[float, float]
                 if SHOULD_PERFORM_TRANSFERABILITY_TEST and combined_train_df is not None:
-                    transfered_classifier = create_logistic_regression_classifier(combined_train_df[[metric_codename,]], combined_train_df["y_labels"])
-                    predicted_labels_transfered_classifier = transfered_classifier.predict(df[[metric_codename,]])
+                    transfered_classifier: Any = create_logistic_regression_classifier(combined_train_df[[metric_codename,]], combined_train_df["y_labels"])
+                    predicted_labels_transfered_classifier: np.ndarray = transfered_classifier.predict(df[[metric_codename,]])
                     best_f1score_transfered_classifier, f1_confidence_interval_transfered_classifier = f1_score(y_labels, predicted_labels_transfered_classifier)
                 else:
-                    best_f1score_transfered_classifier, f1_confidence_interval_transfered_classifier = 0, (0, 0)
+                    best_f1score_transfered_classifier, f1_confidence_interval_transfered_classifier = 0.0, (0.0, 0.0)
                 
                 
                 
-                metric_scores = df[[metric_codename,]]
-                fixed_scores_for_rocauc = deepcopy(df[metric_codename])
+                metric_scores: pd.DataFrame = df[[metric_codename,]]
+                fixed_scores_for_rocauc: pd.Series = deepcopy(df[metric_codename])
                 if metric_codename == "binoculars_score" or metric_codename == "perplexity": 
                     fixed_scores_for_rocauc = -fixed_scores_for_rocauc
                 
                 
+                roc_auc: float
+                roc_auc_confidence_interval: Tuple[float, float]
                 roc_auc, roc_auc_confidence_interval = roc_auc_score(y_labels, fixed_scores_for_rocauc)
                 
-                classifier = create_logistic_regression_classifier(metric_scores, y_labels)
-                predicted_labels = classifier.predict(df[[metric_codename,]])
+                classifier: Any = create_logistic_regression_classifier(metric_scores, y_labels)
+                predicted_labels: np.ndarray = classifier.predict(df[[metric_codename,]])
+                
+                best_f1score: float
+                f1_confidence_interval: Tuple[float, float]
                 best_f1score, f1_confidence_interval = f1_score(y_labels, predicted_labels)
-                tpr_at_fpr_5 = tpr_at_fixed_fpr(y_labels, fixed_scores_for_rocauc, target_fpr=0.05)
+                tpr_at_fpr_5: float = tpr_at_fixed_fpr(y_labels, fixed_scores_for_rocauc, target_fpr=0.05)
                 
                 
                 
-                tpr_at_fpr_5_confidence_interval = bootstrap_tpr_at_fixed_fpr_confidence_interval(y_true=y_labels, y_scores=fixed_scores_for_rocauc, target_fpr=0.05)
+                tpr_at_fpr_5_confidence_interval: Tuple[float, float] = bootstrap_tpr_at_fixed_fpr_confidence_interval(y_true=y_labels, y_scores=fixed_scores_for_rocauc, target_fpr=0.05)
                 roc_auc_confidence_interval = (float(roc_auc_confidence_interval[0]), float(roc_auc_confidence_interval[1]))
                 f1_confidence_interval =  (float(f1_confidence_interval[0]), float(f1_confidence_interval[1]))
                 f1_confidence_interval_transfered_classifier =  (float(f1_confidence_interval_transfered_classifier[0]), float(f1_confidence_interval_transfered_classifier[1]))
@@ -551,7 +600,7 @@ def generate_roc_curve_from_metric():
     
     # Save to a json so that we can use these results easily in other things
     # Make sure all of the data gets into the right format since without this, we can't convert the data to a json
-    corrected_result_dict = {}
+    corrected_result_dict: Dict[str, Dict[str, Dict[str, Dict[str, Any]]]] = {}
     for model_codename, metric_codenames_from_experiment in METRIC_CODENAMES_TO_TEST.items():
         
         model_displayname = MODEL_CODENAME_TO_MODEL_DISPLAYNAME[model_codename]

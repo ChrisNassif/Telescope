@@ -1,6 +1,7 @@
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -13,7 +14,7 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import brier_score_loss
 import yaml
 
-PLOT_COLORS = yaml.safe_load(open("config.yaml"))["plot_colors"]
+PLOT_COLORS: List[str] = yaml.safe_load(open("config.yaml"))["plot_colors"]
 
 plt.rcParams.update({
     'font.family': 'sans-serif',
@@ -34,62 +35,75 @@ plt.rcParams.update({
     'axes.linewidth': 3
 })
 
-EXPERIMENT_FOLDER_NAME = "experiment_results"
-ANALYSIS_OUTPUT_FOLDER_NAME = "experiment_analyses"
-ANALYSIS_NAME = "calibration_plots"
+EXPERIMENT_FOLDER_NAME: str = "experiment_results"
+ANALYSIS_OUTPUT_FOLDER_NAME: str = "experiment_analyses"
+ANALYSIS_NAME: str = "calibration_plots"
 
 
 
 
 
-def format_metric_name(metric_name):
+def format_metric_name(metric_name: str) -> str:
     """Convert metric names to properly formatted display names."""
-    name_mapping = {
+    name_mapping: Dict[str, str] = {
         'binoculars_score': 'Binoculars Score',
         'telescope_perplexity': 'Telescope Perplexity',
         'telescope_perplexity_divided_by_cross_perplexity': 'Telescope Perplexity Divided by Cross Perplexity'
     }
     return name_mapping.get(metric_name, metric_name.replace('_', ' ').title())
 
-def create_output_folders(datasets):
+def create_output_folders(datasets: List[str]) -> None:
     """Create output directory structure."""
     os.makedirs(f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}", exist_ok=True)
     os.makedirs(f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/combined", exist_ok=True)
     
+    dataset: str
     for dataset in datasets:
         os.makedirs(f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{dataset}", exist_ok=True)
 
-def load_and_combine_data(model_name, dataset_name):
+def load_and_combine_data(model_name: str, dataset_name: str) -> pd.DataFrame:
     """Load data from a specific model and dataset combination."""
-    file_path = f"{EXPERIMENT_FOLDER_NAME}/{model_name}_{dataset_name}_dataset/raw_data.csv"
+    file_path: str = f"{EXPERIMENT_FOLDER_NAME}/{model_name}_{dataset_name}_dataset/raw_data.csv"
     print(file_path)
-    df = pd.read_csv(file_path)
+    df: pd.DataFrame = pd.read_csv(file_path)
     df['dataset'] = dataset_name
     return df
 
-def create_calibration_plot(data, metric, model_name, output_path, dataset_name=None, n_bins=10):
+def create_calibration_plot(
+    data: pd.DataFrame,
+    metric: str,
+    model_name: str,
+    output_path: str,
+    dataset_name: Optional[str] = None,
+    n_bins: int = 10
+) -> None:
     """Create and save calibration plots for a specific metric, with both normal and isotonic regression."""
+    fig: plt.Figure
+    ax: plt.Axes
     fig, ax = plt.subplots(figsize=(16, 16))
     plt.subplots_adjust(bottom=0.25) 
     plt.style.use('seaborn-v0_8-whitegrid')
     
-    y_true = data['y_labels'].values
+    y_true: np.ndarray = data['y_labels'].values
     
-    metric_values = data[metric].values
+    metric_values: np.ndarray = data[metric].values
     
-    min_val = np.min(metric_values)
-    max_val = np.max(metric_values)
+    min_val: float = float(np.min(metric_values))
+    max_val: float = float(np.max(metric_values))
     
+    normalized_values: np.ndarray
     if max_val > min_val:
         normalized_values = (metric_values - min_val) / (max_val - min_val)
     else:
         normalized_values = np.zeros_like(metric_values)
     
-    ai_mean = np.mean(normalized_values[y_true == 1])
-    human_mean = np.mean(normalized_values[y_true == 0])
+    ai_mean: float = float(np.mean(normalized_values[y_true == 1]))
+    human_mean: float = float(np.mean(normalized_values[y_true == 0]))
     
     # If AI mean is lower than human mean, flip the scores
     # We want higher scores to indicate AI text for consistency
+    y_prob: np.ndarray
+    direction: str
     if ai_mean < human_mean:
         y_prob = 1 - normalized_values
         direction = "flipped"
@@ -99,6 +113,8 @@ def create_calibration_plot(data, metric, model_name, output_path, dataset_name=
         
     ax.plot([0, 1], [0, 1], linestyle='--', color='gray', linewidth=3.5, alpha=0.7, label='Perfectly calibrated')
     
+    prob_true: np.ndarray
+    prob_pred: np.ndarray
     prob_true, prob_pred = calibration_curve(y_true, y_prob, n_bins=n_bins)
     
     ax.plot(
@@ -106,10 +122,12 @@ def create_calibration_plot(data, metric, model_name, output_path, dataset_name=
         color=PLOT_COLORS[0], label=f'Original (Brier: {brier_score_loss(y_true, y_prob):.3f})'
     )
     
-    isotonic_regression = IsotonicRegression(out_of_bounds='clip')
+    isotonic_regression: IsotonicRegression = IsotonicRegression(out_of_bounds='clip')
     isotonic_regression.fit(y_prob, y_true)
-    y_prob_isotonic = isotonic_regression.predict(y_prob)
+    y_prob_isotonic: np.ndarray = isotonic_regression.predict(y_prob)
     
+    prob_true_isotonic: np.ndarray
+    prob_pred_isotonic: np.ndarray
     prob_true_isotonic, prob_pred_isotonic = calibration_curve(y_true, y_prob_isotonic, n_bins=n_bins)
     
     ax.plot(
@@ -117,7 +135,8 @@ def create_calibration_plot(data, metric, model_name, output_path, dataset_name=
         color=PLOT_COLORS[1], label=f'Isotonic (Brier: {brier_score_loss(y_true, y_prob_isotonic):.3f})'
     )
     
-    formatted_metric = format_metric_name(metric)
+    formatted_metric: str = format_metric_name(metric)
+    title: str
     if dataset_name:
         title = f'{formatted_metric} Calibration - {model_name} - {dataset_name}'
     else:
@@ -128,7 +147,7 @@ def create_calibration_plot(data, metric, model_name, output_path, dataset_name=
     ax.set_ylabel('True Probability (Fraction of Positives)', labelpad=20)
     
 
-    legend = ax.legend(
+    legend: Any = ax.legend(
         loc='upper center', bbox_to_anchor=(0.5, -0.15),
         frameon=True, framealpha=0.9, borderpad=1.2,
         fontsize=33, ncol=3
@@ -150,22 +169,31 @@ def create_calibration_plot(data, metric, model_name, output_path, dataset_name=
 
 
 
-def save_calibration_stats(data, metric, model_name, output_path, dataset_name=None):
+def save_calibration_stats(
+    data: pd.DataFrame,
+    metric: str,
+    model_name: str,
+    output_path: str,
+    dataset_name: Optional[str] = None
+) -> None:
     """Save detailed calibration statistics to a text file."""
-    y_true = data['y_labels'].values
-    metric_values = data[metric].values
+    y_true: np.ndarray = data['y_labels'].values
+    metric_values: np.ndarray = data[metric].values
     
-    min_val = np.min(metric_values)
-    max_val = np.max(metric_values)
+    min_val: float = float(np.min(metric_values))
+    max_val: float = float(np.max(metric_values))
     
+    normalized_values: np.ndarray
     if max_val > min_val:
         normalized_values = (metric_values - min_val) / (max_val - min_val)
     else:
         normalized_values = np.zeros_like(metric_values)
     
-    ai_mean = np.mean(normalized_values[y_true == 1])
-    human_mean = np.mean(normalized_values[y_true == 0])
+    ai_mean: float = float(np.mean(normalized_values[y_true == 1]))
+    human_mean: float = float(np.mean(normalized_values[y_true == 0]))
     
+    y_prob: np.ndarray
+    direction: str
     if ai_mean < human_mean:
         y_prob = 1 - normalized_values
         direction = "flipped"
@@ -173,14 +201,14 @@ def save_calibration_stats(data, metric, model_name, output_path, dataset_name=N
         y_prob = normalized_values
         direction = "original"
     
-    isotonic_regression = IsotonicRegression(out_of_bounds='clip')
+    isotonic_regression: IsotonicRegression = IsotonicRegression(out_of_bounds='clip')
     isotonic_regression.fit(y_prob, y_true)
-    y_prob_isotonic = isotonic_regression.predict(y_prob)
+    y_prob_isotonic: np.ndarray = isotonic_regression.predict(y_prob)
     
-    brier_original = brier_score_loss(y_true, y_prob)
-    brier_isotonic = brier_score_loss(y_true, y_prob_isotonic)
+    brier_original: float = float(brier_score_loss(y_true, y_prob))
+    brier_isotonic: float = float(brier_score_loss(y_true, y_prob_isotonic))
     
-    formatted_metric = format_metric_name(metric)
+    formatted_metric: str = format_metric_name(metric)
     
     with open(output_path, 'w') as f:
         f.write(f"Calibration statistics for {model_name} - {formatted_metric}")
@@ -207,28 +235,29 @@ def save_calibration_stats(data, metric, model_name, output_path, dataset_name=N
         f.write(f"Difference: {np.mean(metric_values[y_true == 1]) - np.mean(metric_values[y_true == 0]):.4f}\n\n")
         
         f.write("Metric percentiles:\n")
-        percentiles = [0, 10, 25, 50, 75, 90, 100]
+        percentiles: List[int] = [0, 10, 25, 50, 75, 90, 100]
         
         f.write("Overall:\n")
+        p: int
         for p in percentiles:
             f.write(f"{p}th percentile: {np.percentile(metric_values, p):.4f}\n")
         
         f.write("\nHuman texts:\n")
-        human_values = metric_values[y_true == 0]
+        human_values: np.ndarray = metric_values[y_true == 0]
         for p in percentiles:
             f.write(f"{p}th percentile: {np.percentile(human_values, p):.4f}\n")
         
         f.write("\nAI texts:\n")
-        ai_values = metric_values[y_true == 1]
+        ai_values: np.ndarray = metric_values[y_true == 1]
         for p in percentiles:
             f.write(f"{p}th percentile: {np.percentile(ai_values, p):.4f}\n")
 
 
 
 
-def main():
+def main() -> None:
 
-    model_features = {
+    model_features: Dict[str, List[str]] = {
         "falcon_7B": ["binoculars_score", "telescope_perplexity"],
         "gemma2_9B": ["binoculars_score", "telescope_perplexity"],
         "smollm_360M": ["binoculars_score", "telescope_perplexity"],
@@ -239,7 +268,7 @@ def main():
         "smollm2_1_7B": ["binoculars_score", "telescope_perplexity"],
     }
     
-    datasets = [
+    datasets: List[str] = [
         "detect_llm_text",
         "ai_human",
         "hc3",
@@ -249,17 +278,21 @@ def main():
     
     create_output_folders(datasets)
     
+    model_name: str
+    features: List[str]
     for model_name, features in model_features.items():
+        dataset: str
         for dataset in datasets:
             try:
-                df = load_and_combine_data(model_name, dataset)
+                df: pd.DataFrame = load_and_combine_data(model_name, dataset)
 
+                feature: str
                 for feature in features:
-                    output_path = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{dataset}/{model_name}_{feature}_calibration.png"
+                    output_path: str = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{dataset}/{model_name}_{feature}_calibration.png"
                     create_calibration_plot(df, feature, model_name, output_path, dataset)
                     print(f"Created calibration plot for {model_name} - {feature} - {dataset}")
                     
-                    stats_path = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{dataset}/{model_name}_{feature}_calibration_stats.txt"
+                    stats_path: str = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/{dataset}/{model_name}_{feature}_calibration_stats.txt"
                     save_calibration_stats(df, feature, model_name, stats_path, dataset)
                     
             except FileNotFoundError:
@@ -268,7 +301,7 @@ def main():
         
 
         try:
-            model_data = []
+            model_data: List[pd.DataFrame] = []
             for dataset in datasets:
                 try:
                     df = load_and_combine_data(model_name, dataset)
@@ -277,7 +310,7 @@ def main():
                     continue
             
             if model_data:
-                combined_data = pd.concat(model_data, ignore_index=True)
+                combined_data: pd.DataFrame = pd.concat(model_data, ignore_index=True)
                 
                 for feature in features:
                     output_path = f"{ANALYSIS_OUTPUT_FOLDER_NAME}/{ANALYSIS_NAME}/combined/{model_name}_{feature}_calibration.png"

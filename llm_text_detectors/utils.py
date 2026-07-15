@@ -3,7 +3,7 @@ import torch
 import os
 import numpy as np
 
-from typing import Tuple
+from typing import Tuple, Optional, Any, Union
 
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -11,10 +11,15 @@ from sklearn.linear_model import LogisticRegression
 
 
 
-def load_model_and_tokenizer(model_path: str, hugging_face_auth_token: str = None, quantization_config = None, device = "cuda:0") -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
+def load_model_and_tokenizer(
+    model_path: str,
+    hugging_face_auth_token: Optional[str] = None,
+    quantization_config: Optional[Any] = None,
+    device: Union[str, torch.device] = "cuda:0"
+) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     print(f"Loading tokenizer from {model_path}")
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path, token = hugging_face_auth_token)
+    tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(model_path, token = hugging_face_auth_token)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         print("Pad token set to EOS token: ", tokenizer.pad_token)
@@ -22,6 +27,7 @@ def load_model_and_tokenizer(model_path: str, hugging_face_auth_token: str = Non
 
 
     # TODO FIX THIS!!!! WHY IS THIS HERE???
+    dtype: torch.dtype
     if model_path in {"EleutherAI/gpt-neo-2.7B", "EleutherAI/gpt-j-6b"}:
         dtype = torch.float32
     else:
@@ -31,7 +37,7 @@ def load_model_and_tokenizer(model_path: str, hugging_face_auth_token: str = Non
 
     # Load the base model
     print("Loading base model...")
-    model = AutoModelForCausalLM.from_pretrained(
+    model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
         model_path,
         token=hugging_face_auth_token,
         quantization_config=quantization_config,
@@ -45,14 +51,14 @@ def load_model_and_tokenizer(model_path: str, hugging_face_auth_token: str = Non
     return model, tokenizer
 
 
-def get_hugging_face_auth_token():
-    token = os.environ.get("HF_TOKEN")
+def get_hugging_face_auth_token() -> str:
+    token: Optional[str] = os.environ.get("HF_TOKEN")
     if not token:
         raise EnvironmentError("HF_TOKEN environment variable is not set. Please set it with your Hugging Face token.")
     return token
 
 
-def create_logistic_regression_classifier(metric, labels) -> Pipeline:
+def create_logistic_regression_classifier(metric: Any, labels: Any) -> Pipeline:
     """
     Uses a logistic regression classifier to determine the classification threshold for a single metric.
 
@@ -66,7 +72,7 @@ def create_logistic_regression_classifier(metric, labels) -> Pipeline:
     return classifier
 
 
-def calculate_optimal_bin_count(x) -> int:
+def calculate_optimal_bin_count(x: Any) -> int:
     """
     Calculate the optimal number of bins for a histogram using the Freedman-Diaconis rule.
 
@@ -97,26 +103,28 @@ def calculate_optimal_bin_count(x) -> int:
     int
         The optimal number of bins (between 1 and 50).
     """
-    x_arr = np.asarray(x)
+    x_arr: np.ndarray = np.asarray(x)
     if len(x_arr) == 0:
         return 30
+    quartile_75: float
+    quartile_25: float
     quartile_75, quartile_25 = np.percentile(x_arr, [75, 25])
-    inter_quartile_range = quartile_75 - quartile_25
-    bin_width = 2 * inter_quartile_range / (len(x_arr) ** (1/3))
+    inter_quartile_range: float = quartile_75 - quartile_25
+    bin_width: float = 2 * inter_quartile_range / (len(x_arr) ** (1/3))
     if bin_width == 0 or bin_width != bin_width:  # handles 0 and NaN
         return 30
-    bins = int(np.ceil((x_arr.max() - x_arr.min()) / bin_width))
+    bins: int = int(np.ceil((x_arr.max() - x_arr.min()) / bin_width))
     return min(bins, 50)
 
 
 
-def print_vram(step_name: str, device: str = "cuda:0"):
+def print_vram(step_name: str, device: Union[str, torch.device] = "cuda:0") -> None:
     """
     Prints the amount of VRAM that is currently being used. Primarily for debugging.
     """
     # Convert bytes to gigabytes
-    allocated = torch.cuda.memory_allocated(device) / (1024 ** 3)
-    reserved = torch.cuda.memory_reserved(device) / (1024 ** 3)
+    allocated: float = torch.cuda.memory_allocated(device) / (1024 ** 3)
+    reserved: float = torch.cuda.memory_reserved(device) / (1024 ** 3)
     
     print(f"[{step_name}] VRAM Allocated: {allocated:.2f} GB | Reserved: {reserved:.2f} GB")
 

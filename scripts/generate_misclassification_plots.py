@@ -1,6 +1,7 @@
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from typing import Dict, List, Optional, Tuple, Any, Set
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -14,12 +15,12 @@ from sklearn.cluster import KMeans
 from collections import Counter
 import yaml
 
-PLOT_COLORS = yaml.safe_load(open("config.yaml"))["plot_colors"]
+PLOT_COLORS: List[str] = yaml.safe_load(open("config.yaml"))["plot_colors"]
 
-def specialized_error_analysis(experiment_name):
+def specialized_error_analysis(experiment_name: str) -> Optional[pd.DataFrame]:
     try:
         # Load the data
-        df = pd.read_csv(f"experiment_results/{experiment_name}/raw_data.csv")
+        df: pd.DataFrame = pd.read_csv(f"experiment_results/{experiment_name}/raw_data.csv")
         
         # Set global font size for all matplotlib plots
         plt.rcParams.update({
@@ -29,9 +30,9 @@ def specialized_error_analysis(experiment_name):
         })
         
         # Create directory structure
-        analyses_dir = "experiment_analyses"
-        plots_dir = f"{analyses_dir}/misclassification_plots"
-        experiment_plots_dir = f"{plots_dir}/{experiment_name}"
+        analyses_dir: str = "experiment_analyses"
+        plots_dir: str = f"{analyses_dir}/misclassification_plots"
+        experiment_plots_dir: str = f"{plots_dir}/{experiment_name}"
         
         # Create directories if they don't exist
         os.makedirs(analyses_dir, exist_ok=True)
@@ -43,7 +44,7 @@ def specialized_error_analysis(experiment_name):
         
         # Determine optimal threshold based on your existing metrics
         # For this analysis, we'll use the median as an example
-        threshold = df['telescope_perplexity'].median()
+        threshold: float = float(df['telescope_perplexity'].median())
         df['predicted'] = (df['telescope_perplexity'] > threshold).astype(int)
         df['correct'] = (df['predicted'] == df['y_labels']).astype(int)
         
@@ -57,17 +58,17 @@ def specialized_error_analysis(experiment_name):
         df['error_distance_raw'] = np.abs(df['telescope_perplexity'] - threshold)
         
         # Calculate standard deviation of perplexity values
-        perplexity_std = df['telescope_perplexity'].std()
+        perplexity_std: float = float(df['telescope_perplexity'].std())
         
         # Convert to standardized error distance (in number of standard deviations)
         df['error_distance'] = df['error_distance_raw'] / perplexity_std
         
         # Get misclassified examples
-        misclassified = df[df['correct'] == 0]
-        max_error_distance = misclassified['error_distance'].max() if len(misclassified) > 0 else 0
+        misclassified: pd.DataFrame = df[df['correct'] == 0]
+        max_error_distance: float = float(misclassified['error_distance'].max()) if len(misclassified) > 0 else 0.0
         
         # Format the max error distance consistently for all plots
-        max_error_distance_str = f"{max_error_distance:.2f}"
+        max_error_distance_str: str = f"{max_error_distance:.2f}"
         
         # Compare error distances between correctly and incorrectly classified examples
         plt.figure(figsize=(16, 10))
@@ -76,11 +77,13 @@ def specialized_error_analysis(experiment_name):
         df['actual_label'] = df['y_labels'].map({1: 'AI-generated', 0: 'Human-written'})
         
         # Create custom color palette for better visibility
-        custom_palette = {'AI-generated': PLOT_COLORS[3], 'Human-written': PLOT_COLORS[0]}
+        custom_palette: Dict[str, str] = {'AI-generated': PLOT_COLORS[3], 'Human-written': PLOT_COLORS[0]}
         
         # Create the histogram manually to ensure legend works properly
+        label: str
+        color: str
         for label, color in custom_palette.items():
-            subset = df[df['actual_label'] == label]
+            subset: pd.DataFrame = df[df['actual_label'] == label]
             sns.histplot(data=subset, x='error_distance', color=color, bins=20, kde=True, alpha=0.7, label=label)
         
         # Set all font sizes
@@ -101,8 +104,8 @@ def specialized_error_analysis(experiment_name):
         
         # 2. Comparative percentile analysis
         # Check how telescope_perplexity values are distributed within their actual classes
-        df_pos = df[df['y_labels'] == 1]
-        df_neg = df[df['y_labels'] == 0]
+        df_pos: pd.DataFrame = df[df['y_labels'] == 1]
+        df_neg: pd.DataFrame = df[df['y_labels'] == 0]
         
         # Calculate percentile rank of each value within its actual class
         if len(df_pos) > 0:
@@ -111,8 +114,8 @@ def specialized_error_analysis(experiment_name):
             df.loc[df['y_labels'] == 0, 'class_percentile'] = df_neg['telescope_perplexity'].rank(pct=True) * 100
         
         # Identify outliers within each class (examples that don't fit with their class)
-        class_outliers = df[((df['y_labels'] == 1) & (df['class_percentile'] < 10)) |
-                            ((df['y_labels'] == 0) & (df['class_percentile'] > 90))]
+        class_outliers: pd.DataFrame = df[((df['y_labels'] == 1) & (df['class_percentile'] < 10)) |
+                                           ((df['y_labels'] == 0) & (df['class_percentile'] > 90))]
         
         print(f"\nFound {len(class_outliers)} class outliers (examples with unexpected perplexity for their class)")
         
@@ -123,7 +126,7 @@ def specialized_error_analysis(experiment_name):
         plt.figure(figsize=(16, 10))
         
         # Create scatter plot of telescope_perplexity values with AI/Human labels
-        scatter = plt.scatter(df.index, df['telescope_perplexity'], c=df['y_labels'], cmap='coolwarm', alpha=0.8, s=100)
+        scatter: Any = plt.scatter(df.index, df['telescope_perplexity'], c=df['y_labels'], cmap='coolwarm', alpha=0.8, s=100)
         
         plt.axhline(y=threshold, color='black', linestyle='--', linewidth=3, label='Threshold')
         
@@ -134,7 +137,7 @@ def specialized_error_analysis(experiment_name):
         
         # Create custom legend
         from matplotlib.lines import Line2D
-        legend_elements = [
+        legend_elements: List[Line2D] = [
             Line2D([0], [0], marker='o', color='w', markerfacecolor=PLOT_COLORS[3], markersize=20, label='AI-generated'),
             Line2D([0], [0], marker='o', color='w', markerfacecolor=PLOT_COLORS[0], markersize=20, label='Human-written'),
             Line2D([0], [0], color='black', linestyle='--', linewidth=3, label='Threshold')
@@ -150,7 +153,7 @@ def specialized_error_analysis(experiment_name):
         
         # 4. Content-based error analysis (if text column exists)
         if 'text' in df.columns:
-            incorrect_df = df[df['correct'] == 0]
+            incorrect_df: pd.DataFrame = df[df['correct'] == 0]
             
             # Text length analysis for errors
             if len(incorrect_df) > 0:
@@ -158,8 +161,8 @@ def specialized_error_analysis(experiment_name):
                 incorrect_df['word_count'] = incorrect_df['text'].apply(lambda x: len(str(x).split()))
                 
                 # Group by error type (FP vs FN)
-                fps = incorrect_df[incorrect_df['predicted'] == 1]
-                fns = incorrect_df[incorrect_df['predicted'] == 0]
+                fps: pd.DataFrame = incorrect_df[incorrect_df['predicted'] == 1]
+                fns: pd.DataFrame = incorrect_df[incorrect_df['predicted'] == 0]
                 
                 # Compare text length distributions
                 plt.figure(figsize=(16, 10))
@@ -185,25 +188,26 @@ def specialized_error_analysis(experiment_name):
                 if len(incorrect_df) >= 10:  # Need enough samples for meaningful analysis
                     try:
                         # Extract common words from error cases
-                        vectorizer = CountVectorizer(stop_words='english', max_features=100)
-                        X = vectorizer.fit_transform(incorrect_df['text'].fillna(''))
+                        vectorizer: CountVectorizer = CountVectorizer(stop_words='english', max_features=100)
+                        X: Any = vectorizer.fit_transform(incorrect_df['text'].fillna(''))
                         
                         # Get most common words
-                        word_counts = np.sum(X.toarray(), axis=0)
-                        words = vectorizer.get_feature_names_out()
-                        word_freq = dict(zip(words, word_counts))
+                        word_counts: np.ndarray = np.sum(X.toarray(), axis=0)
+                        words: np.ndarray = vectorizer.get_feature_names_out()
+                        word_freq: Dict[str, float] = dict(zip(words, word_counts))
                         
                         # Plot top words in errors
                         plt.figure(figsize=(18, 14))
-                        top_words = dict(sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:25])
+                        top_words: Dict[str, float] = dict(sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:25])
                         
                         # Create horizontal bar plot with custom styling
-                        bars = plt.barh(list(top_words.keys()), list(top_words.values()), 
+                        bars: Any = plt.barh(list(top_words.keys()), list(top_words.values()), 
                                        color=PLOT_COLORS[0], edgecolor='black', linewidth=1.5, alpha=0.8)
                         
                         # Add value labels to each bar
+                        bar: Any
                         for bar in bars:
-                            width = bar.get_width()
+                            width: float = float(bar.get_width())
                             plt.text(width + 0.5, bar.get_y() + bar.get_height()/2, 
                                     f'{width:.0f}', ha='left', va='center', fontsize=28)
                         
@@ -223,27 +227,28 @@ def specialized_error_analysis(experiment_name):
                         # Separate analysis for FP and FN if enough examples
                         if len(fps) >= 5 and len(fns) >= 5:
                             # Extract words from FPs
-                            fp_vectorizer = CountVectorizer(stop_words='english', max_features=50)
-                            fp_X = fp_vectorizer.fit_transform(fps['text'].fillna(''))
-                            fp_words = fp_vectorizer.get_feature_names_out()
-                            fp_counts = np.sum(fp_X.toarray(), axis=0)
-                            fp_word_freq = dict(zip(fp_words, fp_counts))
+                            fp_vectorizer: CountVectorizer = CountVectorizer(stop_words='english', max_features=50)
+                            fp_X: Any = fp_vectorizer.fit_transform(fps['text'].fillna(''))
+                            fp_words: np.ndarray = fp_vectorizer.get_feature_names_out()
+                            fp_counts: np.ndarray = np.sum(fp_X.toarray(), axis=0)
+                            fp_word_freq: Dict[str, float] = dict(zip(fp_words, fp_counts))
                             
                             # Extract words from FNs
-                            fn_vectorizer = CountVectorizer(stop_words='english', max_features=50)
-                            fn_X = fn_vectorizer.fit_transform(fns['text'].fillna(''))
-                            fn_words = fn_vectorizer.get_feature_names_out()
-                            fn_counts = np.sum(fn_X.toarray(), axis=0)
-                            fn_word_freq = dict(zip(fn_words, fn_counts))
+                            fn_vectorizer: CountVectorizer = CountVectorizer(stop_words='english', max_features=50)
+                            fn_X: Any = fn_vectorizer.fit_transform(fns['text'].fillna(''))
+                            fn_words: np.ndarray = fn_vectorizer.get_feature_names_out()
+                            fn_counts: np.ndarray = np.sum(fn_X.toarray(), axis=0)
+                            fn_word_freq: Dict[str, float] = dict(zip(fn_words, fn_counts))
                             
                             # Find distinctive words for each error type
-                            all_words = set(fp_words).union(set(fn_words))
-                            fp_distinctive = {}
-                            fn_distinctive = {}
+                            all_words: Set[str] = set(fp_words).union(set(fn_words))
+                            fp_distinctive: Dict[str, float] = {}
+                            fn_distinctive: Dict[str, float] = {}
                             
+                            word: str
                             for word in all_words:
-                                fp_freq = fp_word_freq.get(word, 0) / len(fps)
-                                fn_freq = fn_word_freq.get(word, 0) / len(fns)
+                                fp_freq: float = fp_word_freq.get(word, 0) / len(fps)
+                                fn_freq: float = fn_word_freq.get(word, 0) / len(fns)
                                 
                                 if fp_freq > 2 * fn_freq and fp_freq > 0.1:
                                     fp_distinctive[word] = fp_freq
@@ -263,8 +268,8 @@ def specialized_error_analysis(experiment_name):
                         print(f"Error in text analysis: {e}")
             
             # 5. Find ambiguous boundary examples
-            boundary_width = 0.25  # Now in units of standard deviations
-            boundary_examples = df[(df['error_distance'] < boundary_width)]
+            boundary_width: float = 0.25  # Now in units of standard deviations
+            boundary_examples: pd.DataFrame = df[(df['error_distance'] < boundary_width)]
             
             print(f"\nFound {len(boundary_examples)} examples near decision boundary (within {boundary_width} σ)")
             print(f"Accuracy on boundary examples: {boundary_examples['correct'].mean():.4f}")
@@ -276,7 +281,7 @@ def specialized_error_analysis(experiment_name):
             if len(df) > 20:  # Need enough samples for clustering
                 try:
                     # Get numerical features for clustering
-                    features = ['telescope_perplexity']
+                    features: List[str] = ['telescope_perplexity']
                     if 'text_length' not in df.columns and 'text' in df.columns:
                         df['text_length'] = df['text'].apply(len)
                     
@@ -284,27 +289,29 @@ def specialized_error_analysis(experiment_name):
                         features.append('text_length')
                     
                     # Add any other metrics if available
+                    col: str
                     for col in df.columns:
                         if col.endswith('_perplexity') and col != 'telescope_perplexity':
                             features.append(col)
                     
                     # Standardize features
-                    X_cluster = df[features].copy()
+                    X_cluster: pd.DataFrame = df[features].copy()
                     for col in X_cluster.columns:
                         X_cluster[col] = (X_cluster[col] - X_cluster[col].mean()) / X_cluster[col].std()
                     
                     # Find optimal number of clusters (max 5)
-                    max_clusters = min(5, len(df) // 10)
-                    inertias = []
+                    max_clusters: int = min(5, len(df) // 10)
+                    inertias: List[float] = []
+                    k: int
                     for k in range(2, max_clusters + 1):
-                        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+                        kmeans: KMeans = KMeans(n_clusters=k, random_state=42, n_init=10)
                         kmeans.fit(X_cluster)
                         inertias.append(kmeans.inertia_)
                     
                     # Choose optimal k (simple elbow method)
                     k = 3  # Default
                     if len(inertias) > 1:
-                        diffs = np.diff(inertias)
+                        diffs: np.ndarray = np.diff(inertias)
                         if len(diffs) > 1 and abs(diffs[1]) < 0.5 * abs(diffs[0]):
                             k = 3
                         else:
@@ -315,7 +322,7 @@ def specialized_error_analysis(experiment_name):
                     df['cluster'] = kmeans.fit_predict(X_cluster)
                     
                     # Analyze error rates by cluster
-                    cluster_stats = df.groupby('cluster').agg({
+                    cluster_stats: pd.DataFrame = df.groupby('cluster').agg({
                         'correct': ['mean', 'count'],
                         'telescope_perplexity': ['mean', 'std'],
                         'y_labels': ['mean', 'count']
@@ -332,7 +339,7 @@ def specialized_error_analysis(experiment_name):
                     
                     # Define a better color palette
                     from matplotlib.colors import ListedColormap
-                    cmap = ListedColormap(PLOT_COLORS[:k])
+                    cmap: ListedColormap = ListedColormap(PLOT_COLORS[:k])
                     
                     # Create the scatter plot with larger markers
                     scatter = plt.scatter(df['telescope_perplexity'], 
@@ -344,13 +351,13 @@ def specialized_error_analysis(experiment_name):
                                label=f'Decision Threshold ({threshold:.2f})')
                     
                     # Add colorbar with larger font
-                    cbar = plt.colorbar(scatter, label='Cluster')
+                    cbar: Any = plt.colorbar(scatter, label='Cluster')
                     cbar.ax.tick_params(labelsize=28)
                     cbar.set_label('Cluster', size=32)
                     
                     # Add text labels to identify AI vs Human regions
-                    high_perp_y = df.get('text_length', np.random.normal(size=len(df))).max() * 0.9
-                    low_perp_y = df.get('text_length', np.random.normal(size=len(df))).max() * 0.9
+                    high_perp_y: float = float(df.get('text_length', np.random.normal(size=len(df))).max()) * 0.9
+                    low_perp_y: float = float(df.get('text_length', np.random.normal(size=len(df))).max()) * 0.9
                     
                     plt.text(threshold * 1.2, high_perp_y, 'AI-generated region', 
                             fontsize=32, color=PLOT_COLORS[3],
@@ -380,14 +387,14 @@ def specialized_error_analysis(experiment_name):
         
         # 7. Perplexity-based segmentation analysis
         # Create segments based on perplexity ranges
-        segment_edges = np.percentile(df['telescope_perplexity'], [0, 25, 50, 75, 100])
-        segment_labels = ['Very Low', 'Low', 'Medium', 'High']
+        segment_edges: np.ndarray = np.percentile(df['telescope_perplexity'], [0, 25, 50, 75, 100])
+        segment_labels: List[str] = ['Very Low', 'Low', 'Medium', 'High']
         df['perplexity_segment'] = pd.cut(df['telescope_perplexity'], 
                                            bins=segment_edges, 
                                            labels=segment_labels)
         
         # Analyze error patterns by segment
-        segment_analysis = df.groupby('perplexity_segment').agg({
+        segment_analysis: pd.DataFrame = df.groupby('perplexity_segment').agg({
             'y_labels': ['mean', 'count'],
             'correct': ['mean', 'sum'],
             'telescope_perplexity': ['min', 'max', 'mean']
@@ -398,11 +405,11 @@ def specialized_error_analysis(experiment_name):
         
         # Create a visualization of segment-based performance
         plt.figure(figsize=(16, 10))
-        segment_correctness = df.groupby('perplexity_segment')['correct'].mean()
-        segment_counts = df.groupby('perplexity_segment').size()
+        segment_correctness: pd.Series = df.groupby('perplexity_segment')['correct'].mean()
+        segment_counts: pd.Series = df.groupby('perplexity_segment').size()
         
         # Create the bar plot
-        ax = segment_correctness.plot(kind='bar', color=PLOT_COLORS[0], width=0.6, edgecolor='black', linewidth=2)
+        ax: plt.Axes = segment_correctness.plot(kind='bar', color=PLOT_COLORS[0], width=0.6, edgecolor='black', linewidth=2)
         
         # Add title and labels with larger font sizes
         plt.title(f'Classification Accuracy by Perplexity Segment\n{experiment_name}', 
@@ -411,6 +418,8 @@ def specialized_error_analysis(experiment_name):
         plt.xlabel('Perplexity Segment', fontsize=32)
         
         # Add count labels on each bar with larger font size
+        i: int
+        v: float
         for i, v in enumerate(segment_correctness):
             ax.text(i, v + 0.02, f"n={segment_counts[i]}", ha='center', fontsize=32)
         
@@ -423,8 +432,8 @@ def specialized_error_analysis(experiment_name):
         plt.savefig(f"{experiment_plots_dir}/segment_accuracy.png", dpi=300)
         
         # 8. Find extreme misclassification cases
-        sorted_errors = misclassified.sort_values('error_distance', ascending=False)
-        extreme_errors = sorted_errors.head(10)
+        sorted_errors: pd.DataFrame = misclassified.sort_values('error_distance', ascending=False)
+        extreme_errors: pd.DataFrame = sorted_errors.head(10)
         
         print("\nExtreme Misclassification Cases:")
         print(f"Max telescope_perplexity distance for misclassified examples: {max_error_distance_str} σ")
@@ -432,8 +441,8 @@ def specialized_error_analysis(experiment_name):
         # Output details of worst errors
         if 'text' in extreme_errors.columns:
             for i, (_, row) in enumerate(extreme_errors.iterrows()):
-                label = "positive" if row['y_labels'] == 1 else "negative"
-                pred = "positive" if row['predicted'] == 1 else "negative"
+                label: str = "positive" if row['y_labels'] == 1 else "negative"
+                pred: str = "positive" if row['predicted'] == 1 else "negative"
                 print(f"\nExample {i+1}: True label: {label}, Predicted: {pred}")
                 print(f"telescope_perplexity: {row['telescope_perplexity']:.4f}, Distance: {row['error_distance']:.2f} σ")
                 if 'text' in row:
@@ -449,13 +458,13 @@ def specialized_error_analysis(experiment_name):
         df['standardized_perplexity'] = (df['telescope_perplexity'] - df['telescope_perplexity'].mean()) / df['telescope_perplexity'].std()
         
         # Create perplexity bins based on standardized values
-        n_bins = 10
+        n_bins: int = 10
         # Use more interpretable bin sizes in terms of standard deviations
-        bins = np.linspace(-3, 3, n_bins+1)
+        bins: np.ndarray = np.linspace(-3, 3, n_bins+1)
         df['perplexity_bin'] = pd.cut(df['standardized_perplexity'], bins=bins)
         
         # Calculate error rate by bin
-        bin_stats = df.groupby('perplexity_bin').agg({
+        bin_stats: pd.DataFrame = df.groupby('perplexity_bin').agg({
             'correct': ['mean', 'count', 'sum'],
             'standardized_perplexity': 'mean'
         })
@@ -501,8 +510,8 @@ def specialized_error_analysis(experiment_name):
             
             f.write("ERROR TYPES:\n")
             if len(misclassified) > 0:
-                false_positives = len(misclassified[misclassified['predicted'] == 1])
-                false_negatives = len(misclassified[misclassified['predicted'] == 0])
+                false_positives: int = len(misclassified[misclassified['predicted'] == 1])
+                false_negatives: int = len(misclassified[misclassified['predicted'] == 0])
                 f.write(f"False positives: {false_positives} ({false_positives/len(misclassified)*100:.2f}% of errors)\n")
                 f.write(f"False negatives: {false_negatives} ({false_negatives/len(misclassified)*100:.2f}% of errors)\n\n")
             
@@ -521,7 +530,7 @@ def specialized_error_analysis(experiment_name):
                 f.write(f"Example {i+1}: True: {label}, Pred: {pred}, Perp: {row['telescope_perplexity']:.4f}, Dist: {row['error_distance']:.2f} σ\n")
         
         # Save the updated dataframe with analysis columns
-        analysis_results_path = f"{experiment_plots_dir}/error_analysis.csv"
+        analysis_results_path: str = f"{experiment_plots_dir}/error_analysis.csv"
         df.to_csv(analysis_results_path, index=False)
         
         print(f"\nDetailed error analysis saved to {experiment_plots_dir}")
@@ -536,17 +545,18 @@ def specialized_error_analysis(experiment_name):
 
 if __name__ == "__main__":
     
-    experiment_folder = "experiment_results"
+    experiment_folder: str = "experiment_results"
     if not os.path.exists(experiment_folder):
         print(f"Error: Experiment folder '{experiment_folder}' not found")
     else:
         print(f"Processing experiments in {experiment_folder}...")
-        experiment_count = 0
-        success_count = 0
+        experiment_count: int = 0
+        success_count: int = 0
         
         # Get list of experiment directories
         try:
-            experiments = os.listdir(experiment_folder)
+            experiments: List[str] = os.listdir(experiment_folder)
+            experiment_name: str
             for experiment_name in experiments:
                 if not experiment_name.startswith(""):
                     continue
@@ -556,7 +566,7 @@ if __name__ == "__main__":
                 print(f"Processing experiment {experiment_count}: {experiment_name}")
                 
                 try:
-                    result = specialized_error_analysis(experiment_name)
+                    result: Optional[pd.DataFrame] = specialized_error_analysis(experiment_name)
                     if result is not None:
                         success_count += 1
                 except Exception as e:
