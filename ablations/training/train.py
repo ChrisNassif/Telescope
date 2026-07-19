@@ -333,7 +333,14 @@ def plot_results(csv_file: str, output_dir: str) -> None:
             logger.warning("Not enough data points to create a meaningful plot")
             return
         
-        df = df.replace([np.inf, -np.inf], np.nan).dropna()
+        cols_to_check = [
+            'step', 'telescope_perplexity', 'perplexity_ci_lower', 'perplexity_ci_upper',
+            'attention_entropy', 'attention_entropy_ci_lower', 'attention_entropy_ci_upper',
+            'attention_sparsity'
+        ]
+        available_cols = [col for col in cols_to_check if col in df.columns]
+        df = df.replace([np.inf, -np.inf], np.nan)
+        df = df.dropna(subset=available_cols)
         if len(df) < 2:
             logger.warning("No valid data points after filtering")
             return

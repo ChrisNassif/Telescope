@@ -215,8 +215,8 @@ class Detectors:
 
 
         # Logits are converted to probabilities via softmax
-        performer_model_probabilities: torch.Tensor = torch.softmax(performer_model_logits, dim=-1, dtype=torch.float16)
-        observer_model_probabilities: torch.Tensor = torch.softmax(observer_model_logits, dim=-1, dtype=torch.float16)
+        performer_model_probabilities: torch.Tensor = torch.softmax(performer_model_logits, dim=-1, dtype=torch.float32)
+        observer_model_probabilities: torch.Tensor = torch.softmax(observer_model_logits, dim=-1, dtype=torch.float32)
 
 
         # Calculate telescope perplexity (Telescope)
@@ -619,6 +619,7 @@ class Detectors:
                 - log_probs (torch.Tensor): 1D log probability tensor.
                 - ranks (torch.Tensor): 1D rank tensor.
         """
+        logits = logits.to(torch.float32)
         probs: torch.Tensor = torch.softmax(logits, dim=-1)
         
         target_ids: torch.Tensor = text_encoding.input_ids[1:-1]
