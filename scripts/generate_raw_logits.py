@@ -1,6 +1,5 @@
 import sys
 from typing import Any, Dict, List, Optional, Tuple, Set
-argv: List[str] = sys.argv[1:]
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.getcwd())
@@ -31,11 +30,19 @@ MODEL_PERFORMER_OBSERVER_PAIRS_TO_TEST: Dict[str, Tuple[str, str]] = {
     # "gpt_j_6B": ("EleutherAI/gpt-j-6b", "EleutherAI/gpt-j-6b"),
 }
 
-# Dataset file in the datasets folder (can also be passed as argv[0])
-DATASET_FILE: str = argv[0] if len(argv) > 0 else "ESL_GPT4o_Dataset.csv"
-DATASET_FOLDER: str = "datasets"
+# List of dataset CSV files in datasets/ folder
+DATASET_FILES_TO_TEST: List[str] = [
+    # "ESL_GPT4o_Dataset.csv",
+    "Detect_LLM_Text_Dataset.csv",
+    "AI_Human_Dataset.csv",
+    "Ghostbusters_Creative_GPT_Dataset.csv",
+    # "Ghostbusters_Essay_GPT_Dataset.csv",
+    # "HC3_Dataset.csv",
+    "HC3_Plus_Dataset.csv",
+]
 
-MAX_NUMBER_OF_SAMPLES: int = 1000
+DATASET_FOLDER: str = "datasets"
+MAX_NUMBER_OF_SAMPLES: int = 10000
 OUTPUT_LOGITS_FOLDER: str = "saved_logits"
 DEVICE: str = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -81,7 +88,7 @@ def load_dataset(dataset_path: str) -> pd.DataFrame:
 def compute_16_metrics_for_sample(
     detectors: Detectors, text: str, device: str = "cpu"
 ) -> Dict[str, np.ndarray]:
-    """Computes 16 per-token metric streams for a single text sample."""
+    """Computes per-token metric streams for a single text sample."""
     performer_logits, observer_logits, text_encodings = detectors._compute_logits(
         text, detectors.performer_model, detectors.observer_model, detectors.performer_tokenizer, device=device
     )
@@ -188,18 +195,11 @@ def compute_16_metrics_for_sample(
 
 
 def main():
-    print(f"Loading dataset: {DATASET_FILE}")
-    df = load_dataset(DATASET_FILE)
-    if MAX_NUMBER_OF_SAMPLES > 0 and len(df) > MAX_NUMBER_OF_SAMPLES:
-        df = df.iloc[:MAX_NUMBER_OF_SAMPLES].reset_index(drop=True)
-    print(f"Loaded {len(df)} samples.")
-
     os.makedirs(OUTPUT_LOGITS_FOLDER, exist_ok=True)
-    dataset_name = os.path.basename(DATASET_FILE).lower().replace(".csv", "")
 
     for model_codename, (performer_repo, observer_repo) in MODEL_PERFORMER_OBSERVER_PAIRS_TO_TEST.items():
         print(f"\n=======================================================")
-        print(f"Processing model: {model_codename} ({performer_repo})")
+        print(f"Loading model: {model_codename} ({performer_repo})")
         print(f"=======================================================")
 
         detectors = Detectors(
@@ -208,56 +208,69 @@ def main():
             device=DEVICE,
         )
 
-        metric_streams: Dict[str, List[np.ndarray]] = {m: [] for m in [
-            "log_prob", "shift1_log_prob", "shift2_log_prob", "shift3_log_prob",
-            "rank", "shift1_rank", "shift2_rank", "shift3_rank",
-            "log_rank", "shift1_log_rank", "shift2_log_rank", "shift3_log_rank",
-            "entropy", "mean_ref", "var_ref", "max_prob", "top2_prob", "margin_prob",
-            "target_logit_diff", "top5_mass", "top10_mass", "tv_dist", "cross_loss",
-            "d_log_prob", "d_entropy"
-        ]}
-        sample_offsets: List[int] = []
-        sample_lengths: List[int] = []
-        y_labels: List[int] = []
-        current_offset = 0
-
-        for idx, row in tqdm(df.iterrows(), total=len(df)):
-            text = str(row["clean_text"])
-            label = int(row["clean_label"])
-
-            res = compute_16_metrics_for_sample(detectors, text, device=DEVICE)
-            if not res or len(res["log_prob"]) == 0:
+        for dataset_file in DATASET_FILES_TO_TEST:
+            print(f"\n--- Processing dataset: {dataset_file} ---")
+            try:
+                df = load_dataset(dataset_file)
+            except Exception as e:
+                print(f"Failed to load dataset {dataset_file}: {e}")
                 continue
 
-            seq_len = len(res["log_prob"])
-            sample_offsets.append(current_offset)
-            sample_lengths.append(seq_len)
-            current_offset += seq_len
-            y_labels.append(label)
+            if MAX_NUMBER_OF_SAMPLES > 0 and len(df) > MAX_NUMBER_OF_SAMPLES:
+                df = df.iloc[:MAX_NUMBER_OF_SAMPLES].reset_index(drop=True)
+            print(f"Loaded {len(df)} samples.")
 
-            for m_name in metric_streams.keys():
-                metric_streams[m_name].append(res[m_name])
+            metric_streams: Dict[str, List[np.ndarray]] = {m: [] for m in [
+                "log_prob", "shift1_log_prob", "shift2_log_prob", "shift3_log_prob",
+                "rank", "shift1_rank", "shift2_rank", "shift3_rank",
+                "log_rank", "shift1_log_rank", "shift2_log_rank", "shift3_log_rank",
+                "entropy", "mean_ref", "var_ref", "max_prob", "top2_prob", "margin_prob",
+                "target_logit_diff", "top5_mass", "top10_mass", "tv_dist", "cross_loss",
+                "d_log_prob", "d_entropy"
+            ]}
+            sample_offsets: List[int] = []
+            sample_lengths: List[int] = []
+            y_labels: List[int] = []
+            current_offset = 0
 
-        if len(sample_offsets) == 0:
-            print(f"No samples processed for {model_codename}.")
-            continue
+            for idx, row in tqdm(df.iterrows(), total=len(df)):
+                text = str(row["clean_text"])
+                label = int(row["clean_label"])
 
-        output_filename = f"{model_codename}_{dataset_name}.npz"
-        output_path = os.path.join(OUTPUT_LOGITS_FOLDER, output_filename)
+                res = compute_16_metrics_for_sample(detectors, text, device=DEVICE)
+                if not res or len(res["log_prob"]) == 0:
+                    continue
 
-        save_kwargs = {
-            "y_labels": np.array(y_labels, dtype=np.uint8),
-            "sample_offsets": np.array(sample_offsets, dtype=np.int32),
-            "sample_lengths": np.array(sample_lengths, dtype=np.int32),
-        }
+                seq_len = len(res["log_prob"])
+                sample_offsets.append(current_offset)
+                sample_lengths.append(seq_len)
+                current_offset += seq_len
+                y_labels.append(label)
 
-        for m_name, arrays in metric_streams.items():
-            concatenated = np.concatenate(arrays) if len(arrays) > 0 else np.array([], dtype=np.float16)
-            save_kwargs[m_name] = concatenated
+                for m_name in metric_streams.keys():
+                    metric_streams[m_name].append(res[m_name])
 
-        np.savez_compressed(output_path, **save_kwargs)
-        file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
-        print(f"Successfully saved compressed logits to {output_path} ({file_size_mb:.2f} MB)")
+            if len(sample_offsets) == 0:
+                print(f"No samples processed for {dataset_file}.")
+                continue
+
+            dataset_name = os.path.basename(dataset_file).lower().replace(".csv", "")
+            output_filename = f"{model_codename}_{dataset_name}.npz"
+            output_path = os.path.join(OUTPUT_LOGITS_FOLDER, output_filename)
+
+            save_kwargs = {
+                "y_labels": np.array(y_labels, dtype=np.uint8),
+                "sample_offsets": np.array(sample_offsets, dtype=np.int32),
+                "sample_lengths": np.array(sample_lengths, dtype=np.int32),
+            }
+
+            for m_name, arrays in metric_streams.items():
+                concatenated = np.concatenate(arrays) if len(arrays) > 0 else np.array([], dtype=np.float16)
+                save_kwargs[m_name] = concatenated
+
+            np.savez_compressed(output_path, **save_kwargs)
+            file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+            print(f"Successfully saved compressed logits to {output_path} ({file_size_mb:.2f} MB)")
 
 
 if __name__ == "__main__":

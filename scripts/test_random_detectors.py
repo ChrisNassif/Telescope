@@ -1,6 +1,5 @@
 import sys
 from typing import Any, Dict, List, Optional, Tuple, Set
-argv: List[str] = sys.argv[1:]
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.getcwd())
@@ -16,8 +15,8 @@ from llm_text_detectors.random_functions import generate_unique_detectors, Aggre
 
 ### START GLOBALS -------------------------------------------------------------------------
 
-# Path to cached .npz file (can also be passed via argv[0])
-LOGITS_FILE: str = argv[0] if len(argv) > 0 else "saved_logits/smollm2_135M_esl_gpt4o_dataset.npz"
+# Path to cached .npz file
+LOGITS_FILE: str = "saved_logits/smollm2_135M_esl_gpt4o_dataset.npz"
 
 NUM_RANDOM_DETECTORS_TO_TEST: int = 500
 MAX_AST_TREE_DEPTH: int = 3

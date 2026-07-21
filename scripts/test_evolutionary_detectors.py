@@ -9,7 +9,6 @@ crossover and mutation.
 
 import sys
 from typing import Any, Dict, List, Optional, Tuple, Set
-argv: List[str] = sys.argv[1:]
 import os
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.getcwd())
@@ -36,8 +35,8 @@ from llm_text_detectors.evolutionary_functions import (
 
 ### START GLOBALS -------------------------------------------------------------------------
 
-# Path to cached .npz file (can also be passed via argv[0])
-LOGITS_FILE: str = argv[0] if len(argv) > 0 else "saved_logits/smollm2_135M_esl_gpt4o_dataset.npz"
+# Path to cached .npz file
+LOGITS_FILE: str = "saved_logits/smollm2_135M_esl_gpt4o_dataset.npz"
 
 POPULATION_SIZE: int = 100
 NUM_GENERATIONS: int = 20
