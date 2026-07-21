@@ -28,7 +28,7 @@ def load_model_and_tokenizer(
 
     # TODO FIX THIS!!!! WHY IS THIS HERE???
     dtype: torch.dtype
-    if model_path in {"EleutherAI/gpt-neo-2.7B", "EleutherAI/gpt-j-6b"}:
+    if str(device) == "cpu" or model_path in {"EleutherAI/gpt-neo-2.7B", "EleutherAI/gpt-j-6b"}:
         dtype = torch.float32
     else:
         dtype = torch.float16
